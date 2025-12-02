@@ -6,12 +6,71 @@
 php -S localhost:8000 -t public
 ```
 
+## Authentication
+
+All API endpoints require JWT authentication. Include the token in the Authorization header:
+
+```bash
+Authorization: Bearer <your-jwt-token>
+```
+
+The JWT token must be signed with HMAC256 using the JWT_SECRET from environment variables.
+
+**Note:** JWT authentication is disabled when `APP_DEBUG=true` for development convenience.
+
+### Creating JWT Token
+
+**PHP Example:**
+
+Below is not using any module to create JWT Token (HMAC256)
+
+```php
+<?php
+function createJwtToken($secret, $expirationMinutes = 1) {
+    $header = json_encode(['typ' => 'JWT', 'alg' => 'HS256']);
+    $payload = json_encode(['exp' => time() + ($expirationMinutes * 60)]);
+    
+    $headerEncoded = rtrim(strtr(base64_encode($header), '+/', '-_'), '=');
+    $payloadEncoded = rtrim(strtr(base64_encode($payload), '+/', '-_'), '=');
+    
+    $signature = hash_hmac('sha256', "$headerEncoded.$payloadEncoded", $secret, true);
+    $signatureEncoded = rtrim(strtr(base64_encode($signature), '+/', '-_'), '=');
+    
+    return "$headerEncoded.$payloadEncoded.$signatureEncoded";
+}
+
+$token = createJwtToken('potash_copper_coal', 1);
+echo $token;
+?>
+```
+
+**JavaScript Example:**
+
+```js
+const crypto = require('crypto');
+
+function createJwtToken(secret, expirationMinutes = 1) {
+    const header = Buffer.from(JSON.stringify({typ: 'JWT', alg: 'HS256'})).toString('base64url');
+    const payload = Buffer.from(JSON.stringify({exp: Math.floor(Date.now() / 1000) + (expirationMinutes * 60)})).toString('base64url');
+    
+    const signature = crypto.createHmac('sha256', secret)
+        .update(`${header}.${payload}`)
+        .digest('base64url');
+    
+    return `${header}.${payload}.${signature}`;
+}
+
+const token = createJwtToken('potash_copper_coal', 1);
+console.log(token);
+```
+
 ## Example Query
 
 ```bash
 curl --request POST \
   --url http://localhost:8000/eda/query \
   --header 'Content-Type: application/json' \
+  --header 'Authorization: Bearer <your-jwt-token>' \
   --data '{
   "fields": ["Lcl_Date", "Lcl_Time", "AltB", "IAS"],
   "dateStart": "2025-11-22",

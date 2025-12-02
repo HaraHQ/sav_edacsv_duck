@@ -17,6 +17,8 @@ $router->get('/', function () use ($router) {
     return $router->app->version();
 });
 
-$router->post('/eda/query', 'EdaController@query');
-$router->get('/eda/query', 'EdaController@query');
-$router->get('/test', 'TestController@test');
+$router->group(['middleware' => 'jwt'], function () use ($router) {
+    $router->post('/eda/query', 'EdaController@query');
+    $router->get('/eda/query', 'EdaController@query');
+    $router->get('/test', 'TestController@test');
+});
