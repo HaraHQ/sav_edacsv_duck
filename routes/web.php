@@ -21,6 +21,7 @@ $router->group(['middleware' => 'jwt'], function () use ($router) {
     $router->post('/eda/query', 'EdaController@query');
     $router->get('/eda/query', 'EdaController@query');
     $router->post('/eda/upload', 'EdaController@upload');
+    $router->get('/eda/status', 'EdaController@jobStatus');
     $router->get('/eda/upload-test', function() {
         return response()->json(['test' => 'Upload endpoint accessible', 'php_version' => phpversion()]);
     });

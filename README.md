@@ -3,7 +3,11 @@
 ## Running
 
 ```bash
+# Start the web server
 php -S localhost:8053 -t public
+
+# Start the queue processor (in separate terminal)
+php process_queue.php
 ```
 
 ## Authentication

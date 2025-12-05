@@ -23,9 +23,9 @@ $app = new Laravel\Lumen\Application(
     dirname(__DIR__)
 );
 
-// $app->withFacades();
+$app->withFacades();
 
-// $app->withEloquent();
+$app->withEloquent();
 
 /*
 |--------------------------------------------------------------------------
@@ -60,6 +60,9 @@ $app->singleton(
 */
 
 $app->configure('app');
+$app->configure('database');
+$app->configure('cache');
+$app->configure('queue');
 
 /*
 |--------------------------------------------------------------------------
@@ -92,6 +95,7 @@ $app->routeMiddleware([
 */
 
 $app->register(App\Providers\AppServiceProvider::class);
+// $app->register(Illuminate\Redis\RedisServiceProvider::class);
 // $app->register(App\Providers\AuthServiceProvider::class);
 // $app->register(App\Providers\EventServiceProvider::class);
 

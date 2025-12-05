@@ -39,42 +39,12 @@ class EdaService
 
     private function getFilteredFolders(array $filters)
     {
-        $folders = glob($this->edaFilesPath . '\\EDA*', GLOB_ONLYDIR);
+        $folders = glob($this->edaFilesPath . '\\*', GLOB_ONLYDIR);
         
-        if (isset($filters['dateStart']) || isset($filters['dateEnd']) || isset($filters['acReg'])) {
+        if (isset($filters['acReg'])) {
             $folders = array_filter($folders, function($folder) use ($filters) {
                 $folderName = basename($folder);
-                
-                // Extract acReg and date from folder name: "EDA PK-SNP 22 NOV 2025"
-                if (!preg_match('/EDA\s+([A-Z]{2}-[A-Z0-9]+)\s+(\d{1,2}\s+[A-Z]{3}\s+\d{4})/', $folderName, $matches)) {
-                    return false;
-                }
-                
-                $folderAcReg = $matches[1];
-                $folderDateStr = $matches[2];
-                $folderDate = Carbon::createFromFormat('j M Y', $folderDateStr);
-                
-                // Filter by acReg
-                if (isset($filters['acReg']) && $folderAcReg !== $filters['acReg']) {
-                    return false;
-                }
-                
-                // Filter by date range
-                if (isset($filters['dateStart'])) {
-                    $dateStart = Carbon::parse($filters['dateStart']);
-                    if ($folderDate->lt($dateStart)) {
-                        return false;
-                    }
-                }
-                
-                if (isset($filters['dateEnd'])) {
-                    $dateEnd = Carbon::parse($filters['dateEnd'])->addDay()->startOfDay();
-                    if ($folderDate->gte($dateEnd)) {
-                        return false;
-                    }
-                }
-                
-                return true;
+                return $folderName === $filters['acReg'];
             });
         }
         
@@ -86,31 +56,61 @@ class EdaService
         $csvFiles = [];
         
         foreach ($folders as $folder) {
-            $files = glob($folder . '\\log_*.csv');
+            $files = glob($folder . '\\*.csv');
             
             foreach ($files as $file) {
                 $fileName = basename($file);
                 
-                // Skip files without ICAO code (ending with ______.csv)
-                if (preg_match('/log_\d{6}_\d{6}______\.csv$/', $fileName)) {
-                    continue;
-                }
-                
-                // Extract ICAO code from filename: log_251122_082756_WALL.csv
-                if (preg_match('/log_\d{6}_\d{6}_([A-Z]{4})\.csv$/', $fileName, $matches)) {
-                    $icaoCode = $matches[1];
-                    
-                    // Filter by ICAO code if specified
-                    if (isset($filters['icaoCode']) && $icaoCode !== $filters['icaoCode']) {
-                        continue;
-                    }
-                    
+                // Apply date and ICAO filters based on filename
+                if ($this->matchesFilters($fileName, $filters)) {
                     $csvFiles[] = $file;
                 }
             }
         }
         
         return $csvFiles;
+    }
+    
+    private function matchesFilters($fileName, $filters)
+    {
+        // Skip files without ICAO code (ending with ______.csv)
+        if (preg_match('/______\.csv$/', $fileName)) {
+            return false;
+        }
+        
+        // Extract date and ICAO from filename: log_251122_082756_WALL.csv
+        if (preg_match('/log_(\d{6})_\d{6}_([A-Z]{4})\.csv$/', $fileName, $matches)) {
+            $fileDate = $matches[1];
+            $icaoCode = $matches[2];
+            
+            // Filter by ICAO code
+            if (isset($filters['icaoCode']) && $icaoCode !== $filters['icaoCode']) {
+                return false;
+            }
+            
+            // Filter by date range
+            if (isset($filters['dateStart']) || isset($filters['dateEnd'])) {
+                $fileDateTime = Carbon::createFromFormat('ymd', $fileDate);
+                
+                if (isset($filters['dateStart'])) {
+                    $dateStart = Carbon::parse($filters['dateStart']);
+                    if ($fileDateTime->lt($dateStart)) {
+                        return false;
+                    }
+                }
+                
+                if (isset($filters['dateEnd'])) {
+                    $dateEnd = Carbon::parse($filters['dateEnd'])->addDay()->startOfDay();
+                    if ($fileDateTime->gte($dateEnd)) {
+                        return false;
+                    }
+                }
+            }
+            
+            return true;
+        }
+        
+        return false;
     }
 
     private function queryDuckDb(array $csvFiles, array $fields, array $filters)
