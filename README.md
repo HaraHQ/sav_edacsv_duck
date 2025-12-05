@@ -68,11 +68,34 @@ const token = createJwtToken('potash_copper_coal', 1);
 console.log(token);
 ```
 
-## Example Query
+## API Endpoints
 
+### 1. Test Endpoint
 ```bash
+# Test API connectivity and configuration
+curl --request GET \
+  --url http://localhost:8053/test \
+  --header 'Authorization: Bearer <your-jwt-token>'
+```
+
+### 2. Query Data (GET)
+```bash
+# Get all data
+curl --request GET \
+  --url http://localhost:8053/eda/query \
+  --header 'Authorization: Bearer <your-jwt-token>'
+
+# Get specific fields with filters
+curl --request GET \
+  --url 'http://localhost:8053/eda/query?fields[]=Lcl_Date&fields[]=AltB&dateStart=2025-11-22&acReg=PK-SNP' \
+  --header 'Authorization: Bearer <your-jwt-token>'
+```
+
+### 3. Query Data (POST)
+```bash
+# Complex query with JSON payload
 curl --request POST \
-  --url http://localhost:8000/eda/query \
+  --url http://localhost:8053/eda/query \
   --header 'Content-Type: application/json' \
   --header 'Authorization: Bearer <your-jwt-token>' \
   --data '{
@@ -83,6 +106,15 @@ curl --request POST \
   "icaoCode": "WALJ",
   "includeMetadata": true
 }'
+```
+
+### 4. Check Job Status
+```bash
+# Get processing job status counts
+curl --request GET \
+  --url http://localhost:8053/eda/status \
+  --header 'Authorization: Bearer <your-jwt-token>'
+```
 ```
 
 ## Environment Variables
