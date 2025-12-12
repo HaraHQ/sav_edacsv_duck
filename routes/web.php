@@ -20,8 +20,11 @@ $router->get('/', function () use ($router) {
 $router->group(['middleware' => 'jwt'], function () use ($router) {
     $router->post('/eda/query', 'EdaController@query');
     $router->get('/eda/query', 'EdaController@query');
+    $router->post('/eda/chart', 'EdaController@chart');
     $router->post('/eda/upload', 'EdaController@upload');
     $router->get('/eda/status', 'EdaController@jobStatus');
+    $router->post('/eda/torque_limit/data', 'EdaController@torqueLimitData');
+    $router->post('/eda/torque_limit/chart', 'EdaController@torqueLimitChart');
     $router->get('/eda/upload-test', function() {
         return response()->json(['test' => 'Upload endpoint accessible', 'php_version' => phpversion()]);
     });

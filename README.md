@@ -108,7 +108,22 @@ curl --request POST \
 }'
 ```
 
-### 4. Check Job Status
+### 4. Chart Data
+```bash
+# Get torque chart data for specific aircraft
+curl --request POST \
+  --url http://localhost:8053/eda/chart \
+  --header 'Content-Type: application/json' \
+  --header 'Authorization: Bearer <your-jwt-token>' \
+  --data '{
+    "acReg": "PK-SNT",
+    "dateStart": "2025-11-24",
+    "dateEnd": "2025-11-27",
+    "torqueLimit": 90
+  }'
+```
+
+### 5. Check Job Status
 ```bash
 # Get processing job status counts
 curl --request GET \

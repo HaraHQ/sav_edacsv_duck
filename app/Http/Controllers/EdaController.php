@@ -53,6 +53,35 @@ class EdaController extends BaseController
             ], 500);
         }
     }
+
+    public function chart(Request $request)
+    {
+        try {
+            $acReg = $request->input('acReg');
+            $torqueLimit = $request->input('torqueLimit', 100);
+            $filters = $request->except(['torqueLimit']);
+            
+            error_log('Chart request - acReg: ' . $acReg . ', torqueLimit: ' . $torqueLimit . ', filters: ' . json_encode($filters));
+            
+            $result = $this->edaService->getTorqueLimitChart($filters, $torqueLimit);
+            
+            error_log('Chart result count: ' . (is_array($result) ? count($result) : 'not array'));
+            
+            return response()->json([
+                'success' => true,
+                'acReg' => $acReg,
+                'torqueLimit' => $torqueLimit,
+                'data' => $result
+            ]);
+        } catch (\Exception $e) {
+            error_log('Chart error: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
     
     private function processInBackground($jobId, $zipFile, $basePath)
     {
@@ -123,5 +152,69 @@ class EdaController extends BaseController
             is_dir($path) ? $this->removeDirectory($path) : unlink($path);
         }
         rmdir($dir);
+    }
+
+    public function torqueLimitData(Request $request)
+    {
+        try {
+            $torqueLimit = $request->input('torqueLimit');
+            if (!$torqueLimit) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'torqueLimit is required'
+                ], 400);
+            }
+
+            // Support both single value and object format
+            if (!is_array($torqueLimit)) {
+                $torqueLimit = ['general' => $torqueLimit];
+            }
+
+            $filters = $request->except(['torqueLimit']);
+            $result = $this->edaService->getTorqueLimitData($filters, $torqueLimit);
+
+            return response()->json([
+                'success' => true,
+                'data' => $result,
+                'torqueLimit' => $torqueLimit
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function torqueLimitChart(Request $request)
+    {
+        try {
+            $torqueLimit = $request->input('torqueLimit');
+            if (!$torqueLimit) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'torqueLimit is required'
+                ], 400);
+            }
+
+            // Support both single value and object format
+            if (!is_array($torqueLimit)) {
+                $torqueLimit = ['general' => $torqueLimit];
+            }
+
+            $filters = $request->except(['torqueLimit']);
+            $result = $this->edaService->getTorqueLimitChart($filters, $torqueLimit);
+
+            return response()->json([
+                'success' => true,
+                'data' => $result,
+                'torqueLimit' => $torqueLimit
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }

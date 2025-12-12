@@ -24,13 +24,37 @@ class EdaService
             return [];
         }
 
-        $data = $this->queryDuckDb($csvFiles, $fields, $filters);
+        $totalFiles = count($csvFiles);
+        $page = isset($filters['page']) ? (int)$filters['page'] : 1;
+        $filesPerPage = 50;
+        
+        $data = $this->queryDuckDb($csvFiles, $fields, $filters, $page, $filesPerPage);
         
         if ($includeMetadata && !empty($csvFiles)) {
             return [
                 'data' => $data,
-                'metadata' => $this->extractMetadata($csvFiles[0]),
-                'filters' => $filters
+                'metadata' => $this->extractMetadata($csvFiles[0]['path']),
+                'filters' => $filters,
+                'pagination' => [
+                    'total_files' => $totalFiles,
+                    'files_per_page' => $filesPerPage,
+                    'current_page' => $page,
+                    'total_pages' => ceil($totalFiles / $filesPerPage),
+                    'is_complete' => $totalFiles <= $filesPerPage
+                ]
+            ];
+        }
+        
+        if (is_array($data) && !isset($data['debug'])) {
+            return [
+                'data' => $data,
+                'pagination' => [
+                    'total_files' => $totalFiles,
+                    'files_per_page' => $filesPerPage,
+                    'current_page' => $page,
+                    'total_pages' => ceil($totalFiles / $filesPerPage),
+                    'is_complete' => $totalFiles <= $filesPerPage
+                ]
             ];
         }
         
@@ -44,7 +68,7 @@ class EdaService
         if (isset($filters['acReg'])) {
             $folders = array_filter($folders, function($folder) use ($filters) {
                 $folderName = basename($folder);
-                return $folderName === $filters['acReg'];
+                return strcasecmp($folderName, $filters['acReg']) === 0;
             });
         }
         
@@ -61,9 +85,11 @@ class EdaService
             foreach ($files as $file) {
                 $fileName = basename($file);
                 
-                // Apply date and ICAO filters based on filename
                 if ($this->matchesFilters($fileName, $filters)) {
-                    $csvFiles[] = $file;
+                    $csvFiles[] = [
+                        'path' => $file,
+                        'acReg' => $this->extractAcRegFromFolder($folder)
+                    ];
                 }
             }
         }
@@ -71,24 +97,30 @@ class EdaService
         return $csvFiles;
     }
     
+    private function extractAcRegFromFolder($folderPath)
+    {
+        $folderName = basename($folderPath);
+        // Pattern: PK-XXX or similar aircraft registration
+        if (preg_match('/^([A-Z0-9-]+)$/i', $folderName, $matches)) {
+            return $matches[1];
+        }
+        return 'UNKNOWN';
+    }
+    
     private function matchesFilters($fileName, $filters)
     {
-        // Skip files without ICAO code (ending with ______.csv)
         if (preg_match('/______\.csv$/', $fileName)) {
             return false;
         }
         
-        // Extract date and ICAO from filename: log_251122_082756_WALL.csv
         if (preg_match('/log_(\d{6})_\d{6}_([A-Z]{4})\.csv$/', $fileName, $matches)) {
             $fileDate = $matches[1];
             $icaoCode = $matches[2];
             
-            // Filter by ICAO code
             if (isset($filters['icaoCode']) && $icaoCode !== $filters['icaoCode']) {
                 return false;
             }
             
-            // Filter by date range
             if (isset($filters['dateStart']) || isset($filters['dateEnd'])) {
                 $fileDateTime = Carbon::createFromFormat('ymd', $fileDate);
                 
@@ -113,30 +145,51 @@ class EdaService
         return false;
     }
 
-    private function queryDuckDb(array $csvFiles, array $fields, array $filters)
+    private function queryDuckDb(array $csvFiles, array $fields, array $filters, $page = 1, $filesPerPage = 50)
     {
         if (empty($csvFiles)) {
             return [];
         }
 
-        // First, get column names from the first file
-        $columnNames = $this->getColumnNames($csvFiles[0]);
+        // Paginate files to prevent memory issues
+        $offset = ($page - 1) * $filesPerPage;
+        $csvFiles = array_slice($csvFiles, $offset, $filesPerPage);
+
+        // Get column names from all files and use the one with most columns
+        $allColumnNames = [];
+        foreach ($csvFiles as $csvFileInfo) {
+            $cols = $this->getColumnNames($csvFileInfo['path']);
+            if (count($cols) > count($allColumnNames)) {
+                $allColumnNames = $cols;
+            }
+        }
         
-        // Create UNION ALL query for all CSV files, skipping first 3 lines
+        if (empty($allColumnNames)) {
+            return ['debug' => 'No columns found'];
+        }
+        
+        // Create UNION ALL query
         $unionQueries = [];
-        foreach ($csvFiles as $csvFile) {
-            $escapedPath = str_replace('\\', '/', $csvFile);
-            $columnList = implode(', ', array_map(function($i, $name) {
-                return "column" . sprintf('%02d', $i) . " AS \"$name\"";
-            }, array_keys($columnNames), $columnNames));
-            $unionQueries[] = "SELECT $columnList FROM read_csv('$escapedPath', skip=3, header=false, delim=',', quote='\"', ignore_errors=true, null_padding=true)";
+        foreach ($csvFiles as $csvFileInfo) {
+            $escapedPath = str_replace('\\', '/', $csvFileInfo['path']);
+            $fileColumns = $this->getColumnNames($csvFileInfo['path']);
+            $columnCount = count($fileColumns);
+            
+            $columnList = [];
+            foreach ($allColumnNames as $i => $name) {
+                if ($i < $columnCount) {
+                    $columnList[] = "column" . sprintf('%02d', $i) . " AS \"$name\"";
+                } else {
+                    $columnList[] = "NULL AS \"$name\"";
+                }
+            }
+            $columnList[] = "'" . $csvFileInfo['acReg'] . "' AS \"AcReg\"";
+            $unionQueries[] = "SELECT " . implode(', ', $columnList) . " FROM read_csv('$escapedPath', skip=3, header=false, delim=',', quote='\"', ignore_errors=true, null_padding=true)";
         }
         
         $unionQuery = implode(' UNION ALL ', $unionQueries);
         
-        // Build SELECT clause - use exact column names from CSV
         $selectClause = empty($fields) ? '*' : implode(', ', array_map(function($field) {
-            // Map common field name variations
             $fieldMap = [
                 'Lcl_Date' => 'Lcl Date',
                 'Lcl_Time' => 'Lcl Time',
@@ -152,35 +205,39 @@ class EdaService
             return '"' . trim($actualField) . '"';
         }, $fields));
         
-        $sql = "SELECT $selectClause FROM ($unionQuery) AS combined_data LIMIT 100;";
+        $dataLimit = env('EDA_DATA_LIMIT', 100);
+        $sql = "SELECT $selectClause FROM ($unionQuery) AS combined_data LIMIT $dataLimit;";
         
-        // Add WHERE clause for additional field-based filters
         $whereConditions = [];
         foreach ($filters as $key => $value) {
-            if (!in_array($key, ['dateStart', 'dateEnd', 'acReg', 'icaoCode', 'includeMetadata']) && !empty($value)) {
+            if (!in_array($key, ['dateStart', 'dateEnd', 'acReg', 'icaoCode', 'includeMetadata', 'page']) && !empty($value)) {
                 $whereConditions[] = "\"$key\" = '$value'";
             }
         }
         
         if (!empty($whereConditions)) {
-            $sql = str_replace(' LIMIT 100;', ' WHERE ' . implode(' AND ', $whereConditions) . ' LIMIT 100;', $sql);
+            $sql = str_replace(" LIMIT $dataLimit;", ' WHERE ' . implode(' AND ', $whereConditions) . " LIMIT $dataLimit;", $sql);
         }
         
-        // Execute DuckDB query with JSON output using temp file
         $tempSqlFile = tempnam(sys_get_temp_dir(), 'duckdb_query') . '.sql';
-        file_put_contents($tempSqlFile, $sql);
+        $fullSql = "PRAGMA memory_limit='12GB';\nPRAGMA threads=4;\n" . $sql;
+        file_put_contents($tempSqlFile, $fullSql);
         
         $command = '"' . $this->duckdbPath . '" -json < "' . $tempSqlFile . '"';
         $output = shell_exec($command . ' 2>&1');
         
         unlink($tempSqlFile);
         
-        // Add debug info
         if (empty($output)) {
             return ['debug' => 'Empty output', 'sql' => $sql];
         }
         
-        return $this->parseDuckDbOutput($output);
+        $result = $this->parseDuckDbOutput($output);
+        
+        // Force garbage collection to free memory
+        gc_collect_cycles();
+        
+        return $result;
     }
 
     private function parseDuckDbOutput($output)
@@ -189,19 +246,16 @@ class EdaService
             return ['debug' => 'Empty output'];
         }
         
-        // Check for errors first
         if (strpos($output, 'Error') !== false || strpos($output, 'error') !== false) {
             return ['debug' => 'DuckDB Error: ' . $output];
         }
         
-        // DuckDB JSON output is array format, parse directly
         $data = json_decode($output, true);
         
         if ($data === null) {
             return ['debug' => 'JSON parse error: ' . json_last_error_msg(), 'raw' => substr($output, 0, 500)];
         }
         
-        // Clean up data - trim whitespace and convert empty strings
         return array_map(function($row) {
             return array_map(function($value) {
                 if (is_string($value)) {
@@ -220,11 +274,9 @@ class EdaService
             return [];
         }
         
-        // Skip first 2 lines (metadata and data types)
         fgets($handle);
         fgets($handle);
         
-        // Third line contains column names
         $headerLine = fgets($handle);
         fclose($handle);
         
@@ -232,7 +284,6 @@ class EdaService
             return [];
         }
         
-        // Parse column names, handling spaces and special characters
         $columns = str_getcsv(trim($headerLine));
         return array_map('trim', $columns);
     }
@@ -255,5 +306,192 @@ class EdaService
         }
         
         return $metadata;
+    }
+
+    public function getTorqueLimitData(array $filters, $torqueLimit)
+    {
+        $folders = $this->getFilteredFolders($filters);
+        $csvFiles = $this->getFilteredCsvFiles($folders, $filters);
+        
+        if (empty($csvFiles)) {
+            return [];
+        }
+
+        $sql = $this->buildTorqueLimitQuery($csvFiles, $torqueLimit);
+        $result = $this->executeDuckDbQuery($sql);
+        
+        return $result;
+    }
+
+    public function getTorqueLimitChart(array $filters, $torqueLimit)
+    {
+        $folders = $this->getFilteredFolders($filters);
+        $csvFiles = $this->getFilteredCsvFiles($folders, $filters);
+        
+        if (empty($csvFiles)) {
+            return [];
+        }
+
+        $sql = $this->buildTorqueChartQuery($csvFiles, $torqueLimit);
+        $result = $this->executeDuckDbQuery($sql);
+        
+        return $result;
+    }
+
+    private function buildTorqueLimitQuery($csvFiles, $torqueLimit)
+    {
+        // Sample files from each aircraft to ensure all are represented
+        $filesByAircraft = [];
+        foreach ($csvFiles as $file) {
+            $acReg = $file['acReg'];
+            if (!isset($filesByAircraft[$acReg])) {
+                $filesByAircraft[$acReg] = [];
+            }
+            $filesByAircraft[$acReg][] = $file;
+        }
+        
+        // Take up to 5 files per aircraft, max 100 total
+        $sampledFiles = [];
+        foreach ($filesByAircraft as $files) {
+            $sampledFiles = array_merge($sampledFiles, array_slice($files, 0, 5));
+            if (count($sampledFiles) >= 100) break;
+        }
+        $csvFiles = array_slice($sampledFiles, 0, 100);
+        
+        $allColumnNames = [];
+        foreach ($csvFiles as $csvFileInfo) {
+            $cols = $this->getColumnNames($csvFileInfo['path']);
+            if (count($cols) > count($allColumnNames)) {
+                $allColumnNames = $cols;
+            }
+        }
+
+        $unionQueries = [];
+        foreach ($csvFiles as $csvFileInfo) {
+            $escapedPath = str_replace('\\', '/', $csvFileInfo['path']);
+            $fileColumns = $this->getColumnNames($csvFileInfo['path']);
+            $columnCount = count($fileColumns);
+            
+            $columnList = [];
+            foreach ($allColumnNames as $i => $name) {
+                if ($i < $columnCount) {
+                    $columnList[] = "column" . sprintf('%02d', $i) . " AS \"$name\"";
+                } else {
+                    $columnList[] = "NULL AS \"$name\"";
+                }
+            }
+            $columnList[] = "'" . $csvFileInfo['acReg'] . "' AS \"AcReg\"";
+            $unionQueries[] = "SELECT " . implode(', ', $columnList) . " FROM read_csv('$escapedPath', skip=3, header=false, delim=',', quote='\"', ignore_errors=true, null_padding=true)";
+        }
+        
+        $unionQuery = implode(' UNION ALL ', $unionQueries);
+        
+        // Build CASE statement for per-aircraft limits
+        $generalLimit = isset($torqueLimit['general']) ? $torqueLimit['general'] : 100;
+        $caseConditions = [];
+        foreach ($torqueLimit as $acReg => $limit) {
+            if ($acReg !== 'general') {
+                $caseConditions[] = "WHEN \"AcReg\" = '$acReg' THEN $limit";
+            }
+        }
+        $limitCase = empty($caseConditions) 
+            ? $generalLimit 
+            : "CASE " . implode(' ', $caseConditions) . " ELSE $generalLimit END";
+        
+        return "SELECT \"AcReg\", 
+                $limitCase as torque_limit,
+                COUNT(*) as total_overlimit,
+                ROUND(COUNT(*) / 60.0, 2) as total_overlimit_minutes
+                FROM ($unionQuery) AS data
+                WHERE TRY_CAST(\"E1 Torq\" AS DOUBLE) > $limitCase
+                GROUP BY \"AcReg\"";
+    }
+
+    private function buildTorqueChartQuery($csvFiles, $torqueLimit)
+    {
+        // For chart queries, process all files from the specific aircraft folder
+        // No artificial limit since we're targeting specific acReg + date range
+        // $csvFiles = array_slice($csvFiles, 0, 10); // Removed limit
+        $allColumnNames = [];
+        foreach ($csvFiles as $csvFileInfo) {
+            $cols = $this->getColumnNames($csvFileInfo['path']);
+            if (count($cols) > count($allColumnNames)) {
+                $allColumnNames = $cols;
+            }
+        }
+
+        $unionQueries = [];
+        foreach ($csvFiles as $csvFileInfo) {
+            $escapedPath = str_replace('\\', '/', $csvFileInfo['path']);
+            $fileColumns = $this->getColumnNames($csvFileInfo['path']);
+            $columnCount = count($fileColumns);
+            
+            $columnList = [];
+            foreach ($allColumnNames as $i => $name) {
+                if ($i < $columnCount) {
+                    $columnList[] = "column" . sprintf('%02d', $i) . " AS \"$name\"";
+                } else {
+                    $columnList[] = "NULL AS \"$name\"";
+                }
+            }
+            $columnList[] = "'" . $csvFileInfo['acReg'] . "' AS \"AcReg\"";
+            $unionQueries[] = "SELECT " . implode(', ', $columnList) . " FROM read_csv('$escapedPath', skip=3, header=false, delim=',', quote='\"', ignore_errors=true, null_padding=true)";
+        }
+        
+        $unionQuery = implode(' UNION ALL ', $unionQueries);
+        
+        // Build CASE statement for per-aircraft limits
+        $generalLimit = is_array($torqueLimit) && isset($torqueLimit['general']) ? $torqueLimit['general'] : (is_numeric($torqueLimit) ? $torqueLimit : 100);
+        $caseConditions = [];
+        if (is_array($torqueLimit)) {
+            foreach ($torqueLimit as $acReg => $limit) {
+                if ($acReg !== 'general') {
+                    $caseConditions[] = "WHEN \"AcReg\" = '$acReg' THEN $limit";
+                }
+            }
+        }
+        $limitCase = empty($caseConditions) 
+            ? $generalLimit 
+            : "CASE " . implode(' ', $caseConditions) . " ELSE $generalLimit END";
+        
+        $whereClause = "WHERE TRY_CAST(\"E1 Torq\" AS DOUBLE) IS NOT NULL";
+        
+        $dataLimit = env('EDA_DATA_LIMIT', 2000);
+        
+        return "SELECT \"AcReg\", 
+                \"Lcl Date\" as date,
+                \"Lcl Time\" as time,
+                TRY_CAST(\"E1 Torq\" AS DOUBLE) as torque,
+                $limitCase as torque_limit
+                FROM (
+                    SELECT *, ROW_NUMBER() OVER (PARTITION BY \"Lcl Date\" ORDER BY \"Lcl Time\") as rn
+                    FROM ($unionQuery) AS data
+                    $whereClause
+                ) ranked
+                WHERE rn <= $dataLimit
+                ORDER BY \"Lcl Date\", \"Lcl Time\"";
+    }
+
+    private function executeDuckDbQuery($sql)
+    {
+        $tempSqlFile = tempnam(sys_get_temp_dir(), 'duckdb_query') . '.sql';
+        $fullSql = "PRAGMA memory_limit='12GB';\nPRAGMA threads=4;\n" . $sql;
+        file_put_contents($tempSqlFile, $fullSql);
+        
+        $command = '"' . $this->duckdbPath . '" -json < "' . $tempSqlFile . '"';
+        $output = shell_exec($command . ' 2>&1');
+        
+        unlink($tempSqlFile);
+        
+        if (empty($output)) {
+            return ['debug' => 'Empty output', 'sql' => $sql];
+        }
+        
+        $result = $this->parseDuckDbOutput($output);
+        
+        // Force garbage collection to free memory
+        gc_collect_cycles();
+        
+        return $result;
     }
 }
