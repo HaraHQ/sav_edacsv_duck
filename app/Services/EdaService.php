@@ -121,21 +121,10 @@ class EdaService
                 return false;
             }
             
-            if (isset($filters['dateStart']) || isset($filters['dateEnd'])) {
-                $fileDateTime = Carbon::createFromFormat('ymd', $fileDate);
-                
-                if (isset($filters['dateStart'])) {
-                    $dateStart = Carbon::parse($filters['dateStart']);
-                    if ($fileDateTime->lt($dateStart)) {
-                        return false;
-                    }
-                }
-                
-                if (isset($filters['dateEnd'])) {
-                    $dateEnd = Carbon::parse($filters['dateEnd'])->addDay()->startOfDay();
-                    if ($fileDateTime->gte($dateEnd)) {
-                        return false;
-                    }
+            if (isset($filters['date'])) {
+                $filterDate = Carbon::parse($filters['date'])->format('ymd');
+                if ($fileDate !== $filterDate) {
+                    return false;
                 }
             }
             
@@ -317,10 +306,121 @@ class EdaService
             return [];
         }
 
-        $sql = $this->buildTorqueLimitQuery($csvFiles, $torqueLimit);
-        $result = $this->executeDuckDbQuery($sql);
+        return $this->calculateOverlimitEvents($csvFiles, $torqueLimit);
+    }
+    
+    private function calculateOverlimitEvents($csvFiles, $torqueLimit)
+    {
+        $results = [];
         
-        return $result;
+        foreach ($csvFiles as $csvFileInfo) {
+            $acReg = $csvFileInfo['acReg'];
+            
+            if (!isset($results[$acReg])) {
+                $results[$acReg] = [
+                    'AcReg' => $acReg,
+                    'torque_limit' => $torqueLimit,
+                    'total_overlimit_events' => 0,
+                    'total_overlimit_duration' => '00:00'
+                ];
+            }
+            
+            $fileData = $this->getFileOverlimitEvents($csvFileInfo['path'], $torqueLimit);
+            $results[$acReg]['total_overlimit_events'] += $fileData['events'];
+            $results[$acReg]['total_overlimit_duration'] = $this->addDurations(
+                $results[$acReg]['total_overlimit_duration'], 
+                $fileData['duration']
+            );
+        }
+        
+        return array_values($results);
+    }
+    
+    private function getFileOverlimitEvents($filePath, $limit)
+    {
+        $handle = fopen($filePath, 'r');
+        if (!$handle) return ['events' => 0, 'duration' => '00:00'];
+        
+        // Skip metadata and get headers
+        fgets($handle); fgets($handle);
+        $headerLine = fgets($handle);
+        $headers = str_getcsv(trim($headerLine));
+        
+        // Find column indices
+        $torqueColumnIndex = -1;
+        $dateColumnIndex = -1;
+        $timeColumnIndex = -1;
+        
+        foreach ($headers as $index => $header) {
+            $header = trim($header);
+            if ($header === 'E1 Torq') $torqueColumnIndex = $index;
+            if ($header === 'Lcl Date') $dateColumnIndex = $index;
+            if ($header === 'Lcl Time') $timeColumnIndex = $index;
+        }
+        
+        if ($torqueColumnIndex === -1 || $dateColumnIndex === -1 || $timeColumnIndex === -1) {
+            fclose($handle);
+            return ['events' => 0, 'duration' => '00:00'];
+        }
+        
+        $events = 0;
+        $totalSeconds = 0;
+        $inOverlimit = false;
+        $overlimitStartTime = null;
+        $rowCount = 0;
+        $maxRows = env('EDA_DATA_LIMIT', 5000);
+        
+        while (($line = fgets($handle)) !== false && $rowCount < $maxRows) {
+            $data = str_getcsv($line);
+            if (count($data) <= max($torqueColumnIndex, $dateColumnIndex, $timeColumnIndex)) continue;
+            
+            $torque = floatval(trim($data[$torqueColumnIndex]));
+            $date = trim($data[$dateColumnIndex]);
+            $time = trim($data[$timeColumnIndex]);
+            
+            try {
+                $currentTime = Carbon::createFromFormat('Y-m-d H:i:s', $date . ' ' . $time);
+            } catch (Exception $e) {
+                continue;
+            }
+            
+            if ($torque > $limit && !$inOverlimit) {
+                // Start of overlimit event
+                $inOverlimit = true;
+                $overlimitStartTime = $currentTime;
+                $events++;
+            } elseif ($torque <= $limit && $inOverlimit) {
+                // End of overlimit event
+                $inOverlimit = false;
+                if ($overlimitStartTime) {
+                    $duration = $currentTime->diffInSeconds($overlimitStartTime);
+                    $totalSeconds += $duration;
+                }
+            }
+            
+            $rowCount++;
+        }
+        
+        fclose($handle);
+        
+        $totalMinutes = intval($totalSeconds / 60);
+        $hours = intval($totalMinutes / 60);
+        $minutes = $totalMinutes % 60;
+        $duration = sprintf('%02d:%02d', $hours, $minutes);
+        
+        return ['events' => $events, 'duration' => $duration];
+    }
+    
+    private function addDurations($duration1, $duration2)
+    {
+        list($h1, $m1) = explode(':', $duration1);
+        list($h2, $m2) = explode(':', $duration2);
+        
+        $totalMinutes = ($h1 * 60 + $m1) + ($h2 * 60 + $m2);
+        $hours = intval($totalMinutes / 60);
+        $minutes = $totalMinutes % 60;
+        
+        return sprintf('%02d:%02d', $hours, $minutes);
     }
 
     public function getTorqueLimitChart(array $filters, $torqueLimit)

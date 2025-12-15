@@ -165,11 +165,6 @@ class EdaController extends BaseController
                 ], 400);
             }
 
-            // Support both single value and object format
-            if (!is_array($torqueLimit)) {
-                $torqueLimit = ['general' => $torqueLimit];
-            }
-
             $filters = $request->except(['torqueLimit']);
             $result = $this->edaService->getTorqueLimitData($filters, $torqueLimit);
 
