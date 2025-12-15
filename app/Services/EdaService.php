@@ -209,7 +209,9 @@ class EdaService
         }
         
         $tempSqlFile = tempnam(sys_get_temp_dir(), 'duckdb_query') . '.sql';
-        $fullSql = "PRAGMA memory_limit='12GB';\nPRAGMA threads=4;\n" . $sql;
+        $memoryLimit = env('DUCKDB_MEMORY', '12GB');
+        $threads = env('DUCKDB_VCPU', 4);
+        $fullSql = "PRAGMA memory_limit='$memoryLimit';\nPRAGMA threads=$threads;\n" . $sql;
         file_put_contents($tempSqlFile, $fullSql);
         
         $command = '"' . $this->duckdbPath . '" -json < "' . $tempSqlFile . '"';
@@ -575,7 +577,9 @@ class EdaService
     private function executeDuckDbQuery($sql)
     {
         $tempSqlFile = tempnam(sys_get_temp_dir(), 'duckdb_query') . '.sql';
-        $fullSql = "PRAGMA memory_limit='12GB';\nPRAGMA threads=4;\n" . $sql;
+        $memoryLimit = env('DUCKDB_MEMORY', '12GB');
+        $threads = env('DUCKDB_VCPU', 4);
+        $fullSql = "PRAGMA memory_limit='$memoryLimit';\nPRAGMA threads=$threads;\n" . $sql;
         file_put_contents($tempSqlFile, $fullSql);
         
         $command = '"' . $this->duckdbPath . '" -json < "' . $tempSqlFile . '"';
