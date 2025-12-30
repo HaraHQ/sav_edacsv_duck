@@ -194,6 +194,13 @@ class EdaService
             $fileColumns = $this->getColumnNames($csvFileInfo['path']);
             $columnCount = count($fileColumns);
             
+            // Extract ICAO code from filename
+            $fileName = basename($csvFileInfo['path']);
+            $icaoCode = 'UNKNOWN';
+            if (preg_match('/log_\d{6}_\d{6}_([A-Z]{4})\.csv$/', $fileName, $matches)) {
+                $icaoCode = $matches[1];
+            }
+            
             $columnList = [];
             foreach ($allColumnNames as $i => $name) {
                 if ($i < $columnCount) {
@@ -203,6 +210,7 @@ class EdaService
                 }
             }
             $columnList[] = "'" . $csvFileInfo['acReg'] . "' AS \"AcReg\"";
+            $columnList[] = "'" . $icaoCode . "' AS \"ICAO\"";
             $unionQueries[] = "SELECT " . implode(', ', $columnList) . " FROM read_csv('$escapedPath', skip=3, header=false, delim=',', quote='\"', ignore_errors=true, null_padding=true)";
         }
         
@@ -393,9 +401,17 @@ class EdaService
     private function calculateOverlimitEvents($csvFiles, $torqueLimit)
     {
         $results = [];
+        $overlimitDetails = [];
         
         foreach ($csvFiles as $csvFileInfo) {
             $acReg = $csvFileInfo['acReg'];
+            
+            // Extract ICAO from filename
+            $fileName = basename($csvFileInfo['path']);
+            $icaoCode = 'UNKNOWN';
+            if (preg_match('/log_\d{6}_\d{6}_([A-Z]{4})\.csv$/', $fileName, $matches)) {
+                $icaoCode = $matches[1];
+            }
             
             if (!isset($results[$acReg])) {
                 $results[$acReg] = [
@@ -406,21 +422,27 @@ class EdaService
                 ];
             }
             
-            $fileData = $this->getFileOverlimitEvents($csvFileInfo['path'], $torqueLimit);
+            $fileData = $this->getFileOverlimitEvents($csvFileInfo['path'], $torqueLimit, $acReg, $icaoCode);
             $results[$acReg]['total_overlimit_events'] += $fileData['events'];
             $results[$acReg]['total_overlimit_duration'] = $this->addDurations(
                 $results[$acReg]['total_overlimit_duration'], 
                 $fileData['duration']
             );
+            
+            // Collect overlimit details
+            $overlimitDetails = array_merge($overlimitDetails, $fileData['details']);
         }
         
-        return array_values($results);
+        return [
+            'summary' => array_values($results),
+            'overlimit_details' => $overlimitDetails
+        ];
     }
     
-    private function getFileOverlimitEvents($filePath, $limit)
+    private function getFileOverlimitEvents($filePath, $limit, $acReg, $icaoCode)
     {
         $handle = fopen($filePath, 'r');
-        if (!$handle) return ['events' => 0, 'duration' => '00:00'];
+        if (!$handle) return ['events' => 0, 'duration' => '00:00', 'details' => []];
         
         // Skip metadata and get headers
         fgets($handle); fgets($handle);
@@ -441,13 +463,14 @@ class EdaService
         
         if ($torqueColumnIndex === -1 || $dateColumnIndex === -1 || $timeColumnIndex === -1) {
             fclose($handle);
-            return ['events' => 0, 'duration' => '00:00'];
+            return ['events' => 0, 'duration' => '00:00', 'details' => []];
         }
         
         $events = 0;
         $totalSeconds = 0;
         $inOverlimit = false;
         $overlimitStartTime = null;
+        $overlimitDetails = [];
         $rowCount = 0;
         $maxRows = env('EDA_DATA_LIMIT', 5000);
         
@@ -466,7 +489,16 @@ class EdaService
             }
             
             if ($torque > $limit && !$inOverlimit) {
-                // Start of overlimit event
+                // Start of overlimit event - collect this data point
+                $overlimitDetails[] = [
+                    'date' => $date,
+                    'time' => $time,
+                    'acReg' => $acReg,
+                    'icao' => $icaoCode,
+                    'torque' => $torque,
+                    'limit' => $limit
+                ];
+                
                 $inOverlimit = true;
                 $overlimitStartTime = $currentTime;
                 $events++;
@@ -489,7 +521,7 @@ class EdaService
         $minutes = $totalMinutes % 60;
         $duration = sprintf('%02d:%02d', $hours, $minutes);
         
-        return ['events' => $events, 'duration' => $duration];
+        return ['events' => $events, 'duration' => $duration, 'details' => $overlimitDetails];
     }
     
     private function addDurations($duration1, $duration2)
