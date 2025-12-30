@@ -181,6 +181,24 @@ class EdaController extends BaseController
         }
     }
 
+    public function testFiles(Request $request)
+    {
+        try {
+            $filters = $request->all();
+            $result = $this->edaService->getFilteredFiles($filters);
+
+            return response()->json([
+                'success' => true,
+                'result' => $result
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function torqueLimitChart(Request $request)
     {
         try {

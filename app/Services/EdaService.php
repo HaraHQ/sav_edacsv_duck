@@ -68,7 +68,9 @@ class EdaService
         if (isset($filters['acReg'])) {
             $folders = array_filter($folders, function($folder) use ($filters) {
                 $folderName = basename($folder);
-                return strcasecmp($folderName, $filters['acReg']) === 0;
+                // Try both patterns: direct aircraft name and EDA format
+                return strcasecmp($folderName, $filters['acReg']) === 0 || 
+                       preg_match('/^EDA\s+' . preg_quote($filters['acReg'], '/') . '\s+/i', $folderName);
             });
         }
         
@@ -100,7 +102,11 @@ class EdaService
     private function extractAcRegFromFolder($folderPath)
     {
         $folderName = basename($folderPath);
-        // Pattern: PK-XXX or similar aircraft registration
+        // Try EDA pattern first: EDA {AIRCRAFT_REG} {DD} {MMM} {YYYY}
+        if (preg_match('/^EDA\s+([A-Z0-9-]+)\s+/i', $folderName, $matches)) {
+            return $matches[1];
+        }
+        // Try direct aircraft name pattern: PK-XXX
         if (preg_match('/^([A-Z0-9-]+)$/i', $folderName, $matches)) {
             return $matches[1];
         }
@@ -121,10 +127,34 @@ class EdaService
                 return false;
             }
             
+            // Handle single date filter
             if (isset($filters['date'])) {
                 $filterDate = Carbon::parse($filters['date'])->format('ymd');
                 if ($fileDate !== $filterDate) {
                     return false;
+                }
+            }
+            
+            // Handle date range filters
+            if (isset($filters['dateStart']) || isset($filters['dateEnd'])) {
+                // Parse YYMMDD format: 251126 = 2025-11-26
+                $year = 2000 + intval(substr($fileDate, 0, 2));
+                $month = intval(substr($fileDate, 2, 2));
+                $day = intval(substr($fileDate, 4, 2));
+                $fileDateCarbon = Carbon::create($year, $month, $day);
+                
+                if (isset($filters['dateStart'])) {
+                    $startDate = Carbon::parse($filters['dateStart']);
+                    if ($fileDateCarbon->lt($startDate)) {
+                        return false;
+                    }
+                }
+                
+                if (isset($filters['dateEnd'])) {
+                    $endDate = Carbon::parse($filters['dateEnd']);
+                    if ($fileDateCarbon->gt($endDate)) {
+                        return false;
+                    }
                 }
             }
             
@@ -299,16 +329,65 @@ class EdaService
         return $metadata;
     }
 
-    public function getTorqueLimitData(array $filters, $torqueLimit)
+    public function getFilteredFiles(array $filters)
     {
         $folders = $this->getFilteredFolders($filters);
+        
+        // Debug: Show all files in found folders
+        $allFiles = [];
+        foreach ($folders as $folder) {
+            $files = glob($folder . '\\*.csv');
+            foreach ($files as $file) {
+                $fileName = basename($file);
+                $allFiles[] = [
+                    'filename' => $fileName,
+                    'matches_pattern' => preg_match('/log_(\d{6})_\d{6}_([A-Z]{4})\.csv$/', $fileName),
+                    'matches_filters' => $this->matchesFilters($fileName, $filters)
+                ];
+            }
+        }
+        
         $csvFiles = $this->getFilteredCsvFiles($folders, $filters);
         
+        return [
+            'filters' => $filters,
+            'folders_found' => array_map('basename', $folders),
+            'all_files_in_folders' => $allFiles,
+            'total_files' => count($csvFiles),
+            'files' => array_map(function($file) {
+                return [
+                    'path' => $file['path'],
+                    'filename' => basename($file['path']),
+                    'acReg' => $file['acReg']
+                ];
+            }, $csvFiles)
+        ];
+    }
+
+    public function getTorqueLimitData(array $filters, $torqueLimit)
+    {
+        error_log('getTorqueLimitData called with filters: ' . json_encode($filters) . ', torqueLimit: ' . $torqueLimit);
+        
+        $folders = $this->getFilteredFolders($filters);
+        error_log('Found folders: ' . json_encode(array_map('basename', $folders)));
+        
+        // Debug: List all folders to see actual structure
+        $allFolders = glob($this->edaFilesPath . '\\*', GLOB_ONLYDIR);
+        error_log('All available folders: ' . json_encode(array_map('basename', $allFolders)));
+        
+        $csvFiles = $this->getFilteredCsvFiles($folders, $filters);
+        error_log('Found CSV files: ' . count($csvFiles) . ' files');
+        error_log('CSV file paths: ' . json_encode(array_column($csvFiles, 'path')));
+        
         if (empty($csvFiles)) {
+            error_log('No CSV files found, returning empty array');
             return [];
         }
 
-        return $this->calculateOverlimitEvents($csvFiles, $torqueLimit);
+        $result = $this->calculateOverlimitEvents($csvFiles, $torqueLimit);
+        error_log('Final result: ' . json_encode($result));
+        
+        return $result;
     }
     
     private function calculateOverlimitEvents($csvFiles, $torqueLimit)
