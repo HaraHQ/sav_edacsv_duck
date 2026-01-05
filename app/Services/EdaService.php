@@ -490,24 +490,36 @@ class EdaService
             
             if ($torque > $limit && !$inOverlimit) {
                 // Start of overlimit event - collect this data point
+                $inOverlimit = true;
+                $overlimitStartTime = $currentTime;
+                $events++;
+                
+                // Store start info for later duration calculation
                 $overlimitDetails[] = [
                     'date' => $date,
                     'time' => $time,
                     'acReg' => $acReg,
                     'icao' => $icaoCode,
                     'torque' => $torque,
-                    'limit' => $limit
+                    'limit' => $limit,
+                    'duration' => null, // Will be filled when overlimit ends
+                    'start_datetime' => $currentTime // Temporary field for calculation
                 ];
-                
-                $inOverlimit = true;
-                $overlimitStartTime = $currentTime;
-                $events++;
             } elseif ($torque <= $limit && $inOverlimit) {
-                // End of overlimit event
+                // End of overlimit event - calculate duration
                 $inOverlimit = false;
-                if ($overlimitStartTime) {
+                if ($overlimitStartTime && !empty($overlimitDetails)) {
                     $duration = $currentTime->diffInSeconds($overlimitStartTime);
                     $totalSeconds += $duration;
+                    
+                    // Update the last overlimit detail with duration
+                    $lastIndex = count($overlimitDetails) - 1;
+                    $hours = intval($duration / 3600);
+                    $minutes = intval(($duration % 3600) / 60);
+                    $overlimitDetails[$lastIndex]['duration'] = sprintf('%02d:%02d', $hours, $minutes);
+                    
+                    // Remove temporary field
+                    unset($overlimitDetails[$lastIndex]['start_datetime']);
                 }
             }
             
