@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class EdaService
 {
@@ -379,58 +380,60 @@ class EdaService
         $folders = $this->getFilteredFolders($filters);
         error_log('Found folders: ' . json_encode(array_map('basename', $folders)));
         
-        // Debug: List all folders to see actual structure
-        $allFolders = glob($this->edaFilesPath . '\\*', GLOB_ONLYDIR);
-        error_log('All available folders: ' . json_encode(array_map('basename', $allFolders)));
-        
         $csvFiles = $this->getFilteredCsvFiles($folders, $filters);
         error_log('Found CSV files: ' . count($csvFiles) . ' files');
-        error_log('CSV file paths: ' . json_encode(array_column($csvFiles, 'path')));
         
         if (empty($csvFiles)) {
             error_log('No CSV files found, returning empty array');
             return [];
         }
 
-        $result = $this->calculateOverlimitEvents($csvFiles, $torqueLimit);
+        $result = $this->calculateOverlimitEventsWithFlightDetails($csvFiles, $torqueLimit, $filters['acReg'] ?? null);
         error_log('Final result: ' . json_encode($result));
         
         return $result;
     }
     
-    private function calculateOverlimitEvents($csvFiles, $torqueLimit)
+    private function calculateOverlimitEventsWithFlightDetails($csvFiles, $torqueLimit, $acReg)
     {
         $results = [];
         $overlimitDetails = [];
         
         foreach ($csvFiles as $csvFileInfo) {
-            $acReg = $csvFileInfo['acReg'];
+            $acRegFromFile = $csvFileInfo['acReg'];
             
-            // Extract ICAO from filename
             $fileName = basename($csvFileInfo['path']);
             $icaoCode = 'UNKNOWN';
             if (preg_match('/log_\d{6}_\d{6}_([A-Z]{4})\.csv$/', $fileName, $matches)) {
                 $icaoCode = $matches[1];
             }
             
-            if (!isset($results[$acReg])) {
-                $results[$acReg] = [
-                    'AcReg' => $acReg,
+            if (!isset($results[$acRegFromFile])) {
+                $results[$acRegFromFile] = [
+                    'AcReg' => $acRegFromFile,
                     'torque_limit' => $torqueLimit,
                     'total_overlimit_events' => 0,
-                    'total_overlimit_duration' => '00:00'
+                    'total_overlimit_duration' => '00:00',
+                    'child_data' => []
                 ];
             }
             
-            $fileData = $this->getFileOverlimitEvents($csvFileInfo['path'], $torqueLimit, $acReg, $icaoCode);
-            $results[$acReg]['total_overlimit_events'] += $fileData['events'];
-            $results[$acReg]['total_overlimit_duration'] = $this->addDurations(
-                $results[$acReg]['total_overlimit_duration'], 
+            $fileData = $this->getFileOverlimitEvents($csvFileInfo['path'], $torqueLimit, $acRegFromFile, $icaoCode);
+            $results[$acRegFromFile]['total_overlimit_events'] += $fileData['events'];
+            $results[$acRegFromFile]['total_overlimit_duration'] = $this->addDurations(
+                $results[$acRegFromFile]['total_overlimit_duration'], 
                 $fileData['duration']
             );
             
-            // Collect overlimit details
             $overlimitDetails = array_merge($overlimitDetails, $fileData['details']);
+        }
+        
+        // Get flight details from database for overlimit events
+        if (!empty($overlimitDetails) && $acReg) {
+            $childData = $this->getFlightDetailsFromDatabase($overlimitDetails, $acReg);
+            if (!empty($childData)) {
+                $results[$acReg]['child_data'] = $childData;
+            }
         }
         
         return [
@@ -483,7 +486,14 @@ class EdaService
             $time = trim($data[$timeColumnIndex]);
             
             try {
-                $currentTime = Carbon::createFromFormat('Y-m-d H:i:s', $date . ' ' . $time);
+                // Handle different date formats
+                if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+                    // Format: 2025-11-24
+                    $currentTime = Carbon::createFromFormat('Y-m-d H:i:s', $date . ' ' . $time);
+                } else {
+                    // Try other formats
+                    $currentTime = Carbon::parse($date . ' ' . $time);
+                }
             } catch (Exception $e) {
                 continue;
             }
@@ -546,6 +556,97 @@ class EdaService
         $minutes = $totalMinutes % 60;
         
         return sprintf('%02d:%02d', $hours, $minutes);
+    }
+    
+    private function getFlightDetailsFromDatabase($overlimitDetails, $acReg)
+    {
+        if (empty($overlimitDetails) || empty($acReg)) {
+            return [];
+        }
+
+        // Get aircraft ID from registration code
+        $aircraft = DB::table('aircraft')
+            ->select('id')
+            ->where('reg_code', $acReg)
+            ->first();
+            
+        if (!$aircraft) {
+            return [];
+        }
+
+        $childData = [];
+        foreach ($overlimitDetails as $detail) {
+            $date = $detail['date'] ?? null;
+            $icao = $detail['icao'] ?? null;
+            $time = $detail['time'] ?? null;
+            $duration = $detail['duration'] ?? null;
+            
+            if (!$date || !$icao) continue;
+
+            $row = DB::table('afml as a')
+                ->select([
+                    'a.date',
+                    'a.page_no',
+                    'it_from.code as from_code',
+                    'it_to.code as to_code',
+                    'it_from.timezone as from_timezone',
+                    'tu_1.full_name as captain',
+                    'tu_2.full_name as copilot',
+                    'tu_3.full_name as engineer'
+                ])
+                ->leftJoin('afml_detail as ad', 'a.id', '=', 'ad.afml_id')
+                ->leftJoin('iata as it_from', 'it_from.id', '=', 'ad.iata_id_from')
+                ->leftJoin('iata as it_to', 'it_to.id', '=', 'ad.iata_id_to')
+                ->leftJoin('tb_user as tu_1', 'tu_1.id', '=', 'a.captain_user_id')
+                ->leftJoin('tb_user as tu_2', 'tu_2.id', '=', 'a.copilot_user_id')
+                ->leftJoin('tb_user as tu_3', 'tu_3.id', '=', 'a.engineer_user_id')
+                ->where('a.date', $date)
+                ->where('a.aircraft_id', $aircraft->id)
+                ->where('it_from.icao_code', $icao)
+                ->first();
+        
+            if ($row) {
+                // Calculate timezone-adjusted time
+                $adjustedTime = $time;
+                if ($row->from_timezone && $time) {
+                    try {
+                        $timeCarbon = Carbon::createFromFormat('H:i:s', $time);
+                        $timeCarbon->addHours($row->from_timezone);
+                        $adjustedTime = $timeCarbon->format('H:i:s');
+                    } catch (Exception $e) {
+                        // Keep original time if parsing fails
+                    }
+                }
+                
+                $childData[] = [
+                    'page_no' => $row->page_no,
+                    'date' => $row->date,
+                    'time' => $adjustedTime,
+                    'duration' => $duration,
+                    'from' => $row->from_code ?? '',
+                    'to' => $row->to_code ?? '',
+                    'captain' => $row->captain ?? '',
+                    'copilot' => $row->copilot ?? '',
+                    'engineer' => $row->engineer ?? '',
+                ];
+            }
+        }
+
+        // Calculate overlimit_count
+        $countMap = [];
+        foreach ($childData as $item) {
+            $key = $item['page_no'] . '-' . $item['from'] . '-' . $item['to'];
+            if (!isset($countMap[$key])) $countMap[$key] = 0;
+            $countMap[$key]++;
+        }
+
+        // Add overlimit_count to each item
+        foreach ($childData as $i => $item) {
+            $key = $item['page_no'] . '-' . $item['from'] . '-' . $item['to'];
+            $childData[$i]['overlimit_count'] = $countMap[$key];
+        }
+
+        return $childData;
     }
 
     public function getTorqueLimitChart(array $filters, $torqueLimit)
