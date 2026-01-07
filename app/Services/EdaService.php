@@ -373,7 +373,7 @@ class EdaService
         ];
     }
 
-    public function getTorqueLimitData(array $filters, $torqueLimit)
+    public function getTorqueLimitData(array $filters, $torqueLimit, $originalFilters = null)
     {
         error_log('getTorqueLimitData called with filters: ' . json_encode($filters) . ', torqueLimit: ' . $torqueLimit);
         
@@ -388,13 +388,13 @@ class EdaService
             return [];
         }
 
-        $result = $this->calculateOverlimitEventsWithFlightDetails($csvFiles, $torqueLimit, $filters['acReg'] ?? null);
+        $result = $this->calculateOverlimitEventsWithFlightDetails($csvFiles, $torqueLimit, $filters['acReg'] ?? null, $originalFilters);
         error_log('Final result: ' . json_encode($result));
         
         return $result;
     }
     
-    private function calculateOverlimitEventsWithFlightDetails($csvFiles, $torqueLimit, $acReg)
+    private function calculateOverlimitEventsWithFlightDetails($csvFiles, $torqueLimit, $acReg, $originalFilters = null)
     {
         $results = [];
         $overlimitDetails = [];
@@ -418,7 +418,7 @@ class EdaService
                 ];
             }
             
-            $fileData = $this->getFileOverlimitEvents($csvFileInfo['path'], $torqueLimit, $acRegFromFile, $icaoCode);
+            $fileData = $this->getFileOverlimitEvents($csvFileInfo['path'], $torqueLimit, $acRegFromFile, $icaoCode, $originalFilters);
             $results[$acRegFromFile]['total_overlimit_events'] += $fileData['events'];
             $results[$acRegFromFile]['total_overlimit_duration'] = $this->addDurations(
                 $results[$acRegFromFile]['total_overlimit_duration'], 
@@ -442,7 +442,7 @@ class EdaService
         ];
     }
     
-    private function getFileOverlimitEvents($filePath, $limit, $acReg, $icaoCode)
+    private function getFileOverlimitEvents($filePath, $limit, $acReg, $icaoCode, $originalFilters = null)
     {
         $handle = fopen($filePath, 'r');
         if (!$handle) return ['events' => 0, 'duration' => '00:00', 'details' => []];
@@ -484,6 +484,18 @@ class EdaService
             $torque = floatval(trim($data[$torqueColumnIndex]));
             $date = trim($data[$dateColumnIndex]);
             $time = trim($data[$timeColumnIndex]);
+            
+            // Filter by original date range if provided
+            if ($originalFilters && isset($originalFilters['dateStart']) && isset($originalFilters['dateEnd'])) {
+                $rowDate = Carbon::parse($date);
+                $startDate = Carbon::parse($originalFilters['dateStart']);
+                $endDate = Carbon::parse($originalFilters['dateEnd']);
+                
+                if ($rowDate->lt($startDate) || $rowDate->gt($endDate)) {
+                    $rowCount++;
+                    continue; // Skip rows outside original date range
+                }
+            }
             
             try {
                 // Handle different date formats

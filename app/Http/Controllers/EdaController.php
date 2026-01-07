@@ -166,7 +166,16 @@ class EdaController extends BaseController
             }
 
             $filters = $request->except(['torqueLimit']);
-            $result = $this->edaService->getTorqueLimitData($filters, $torqueLimit);
+            $originalFilters = $filters; // Keep original for result filtering
+            
+            // Adjust dateStart by subtracting 1 day to account for timezone overlaps
+            if (isset($filters['dateStart'])) {
+                $originalDate = \Carbon\Carbon::parse($filters['dateStart']);
+                $adjustedDate = $originalDate->subDay();
+                $filters['dateStart'] = $adjustedDate->format('Y-m-d');
+            }
+            
+            $result = $this->edaService->getTorqueLimitData($filters, $torqueLimit, $originalFilters);
 
             return response()->json([
                 'success' => true,
