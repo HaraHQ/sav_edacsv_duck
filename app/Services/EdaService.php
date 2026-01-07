@@ -413,7 +413,7 @@ class EdaService
                     'AcReg' => $acRegFromFile,
                     'torque_limit' => $torqueLimit,
                     'total_overlimit_events' => 0,
-                    'total_overlimit_duration' => '00:00',
+                    'total_overlimit_duration' => '00:00:00',
                     'child_data' => []
                 ];
             }
@@ -538,7 +538,8 @@ class EdaService
                     $lastIndex = count($overlimitDetails) - 1;
                     $hours = intval($duration / 3600);
                     $minutes = intval(($duration % 3600) / 60);
-                    $overlimitDetails[$lastIndex]['duration'] = sprintf('%02d:%02d', $hours, $minutes);
+                    $seconds = $duration % 60;
+                    $overlimitDetails[$lastIndex]['duration'] = sprintf('%02d:%02d:%02d', $hours, $minutes, $seconds);
                     
                     // Remove temporary field
                     unset($overlimitDetails[$lastIndex]['start_datetime']);
@@ -550,24 +551,28 @@ class EdaService
         
         fclose($handle);
         
-        $totalMinutes = intval($totalSeconds / 60);
-        $hours = intval($totalMinutes / 60);
-        $minutes = $totalMinutes % 60;
-        $duration = sprintf('%02d:%02d', $hours, $minutes);
+        $hours = intval($totalSeconds / 3600);
+        $minutes = intval(($totalSeconds % 3600) / 60);
+        $seconds = $totalSeconds % 60;
+        $duration = sprintf('%02d:%02d:%02d', $hours, $minutes, $seconds);
         
         return ['events' => $events, 'duration' => $duration, 'details' => $overlimitDetails];
     }
     
     private function addDurations($duration1, $duration2)
     {
-        list($h1, $m1) = explode(':', $duration1);
-        list($h2, $m2) = explode(':', $duration2);
+        $parts1 = explode(':', $duration1);
+        $parts2 = explode(':', $duration2);
         
-        $totalMinutes = ($h1 * 60 + $m1) + ($h2 * 60 + $m2);
-        $hours = intval($totalMinutes / 60);
-        $minutes = $totalMinutes % 60;
+        $seconds1 = (count($parts1) == 3) ? $parts1[0] * 3600 + $parts1[1] * 60 + $parts1[2] : $parts1[0] * 60 + $parts1[1];
+        $seconds2 = (count($parts2) == 3) ? $parts2[0] * 3600 + $parts2[1] * 60 + $parts2[2] : $parts2[0] * 60 + $parts2[1];
         
-        return sprintf('%02d:%02d', $hours, $minutes);
+        $totalSeconds = $seconds1 + $seconds2;
+        $hours = intval($totalSeconds / 3600);
+        $minutes = intval(($totalSeconds % 3600) / 60);
+        $seconds = $totalSeconds % 60;
+        
+        return sprintf('%02d:%02d:%02d', $hours, $minutes, $seconds);
     }
     
     private function getFlightDetailsFromDatabase($overlimitDetails, $acReg)
@@ -634,7 +639,7 @@ class EdaService
                     'page_no' => $row->page_no,
                     'date' => $row->date,
                     'time' => $adjustedTime,
-                    'duration' => $duration,
+                    'duration' => $duration ?: '00:00:00',
                     'from' => $row->from_code ?? '',
                     'to' => $row->to_code ?? '',
                     'captain' => $row->captain ?? '',
@@ -833,5 +838,94 @@ class EdaService
         gc_collect_cycles();
         
         return $result;
+    }
+
+    public function calculateOverlimitTimeSeconds(array $filters, $torqueLimit)
+    {
+        $folders = $this->getFilteredFolders($filters);
+        $csvFiles = $this->getFilteredCsvFiles($folders, $filters);
+        
+        if (empty($csvFiles)) {
+            return ['total_seconds' => 0, 'events' => 0, 'details' => []];
+        }
+
+        $totalSeconds = 0;
+        $totalEvents = 0;
+        $details = [];
+        
+        foreach ($csvFiles as $csvFileInfo) {
+            $fileResult = $this->getFileOverlimitSeconds($csvFileInfo['path'], $torqueLimit, $csvFileInfo['acReg']);
+            $totalSeconds += $fileResult['seconds'];
+            $totalEvents += $fileResult['events'];
+            $details = array_merge($details, $fileResult['details']);
+        }
+        
+        return [
+            'total_seconds' => $totalSeconds,
+            'events' => $totalEvents,
+            'details' => $details
+        ];
+    }
+    
+    private function getFileOverlimitSeconds($filePath, $limit, $acReg)
+    {
+        $handle = fopen($filePath, 'r');
+        if (!$handle) return ['seconds' => 0, 'events' => 0, 'details' => []];
+        
+        fgets($handle); fgets($handle);
+        $headerLine = fgets($handle);
+        $headers = str_getcsv(trim($headerLine));
+        
+        $torqueColumnIndex = -1;
+        foreach ($headers as $index => $header) {
+            if (trim($header) === 'E1 Torq') {
+                $torqueColumnIndex = $index;
+                break;
+            }
+        }
+        
+        if ($torqueColumnIndex === -1) {
+            fclose($handle);
+            return ['seconds' => 0, 'events' => 0, 'details' => []];
+        }
+        
+        $events = 0;
+        $totalSeconds = 0;
+        $inOverlimit = false;
+        $overlimitStartRow = 0;
+        $details = [];
+        $rowCount = 0;
+        
+        while (($line = fgets($handle)) !== false) {
+            $data = str_getcsv($line);
+            if (count($data) <= $torqueColumnIndex) continue;
+            
+            $torque = floatval(trim($data[$torqueColumnIndex]));
+            
+            if ($torque > $limit && !$inOverlimit) {
+                $inOverlimit = true;
+                $overlimitStartRow = $rowCount;
+                $events++;
+            } elseif ($torque <= $limit && $inOverlimit) {
+                $inOverlimit = false;
+                $duration = $rowCount - $overlimitStartRow;
+                $totalSeconds += $duration;
+                
+                $details[] = [
+                    'acReg' => $acReg,
+                    'file' => basename($filePath),
+                    'start_row' => $overlimitStartRow,
+                    'end_row' => $rowCount,
+                    'duration_seconds' => $duration,
+                    'torque_limit' => $limit
+                ];
+            }
+            
+            $rowCount++;
+        }
+        
+        fclose($handle);
+        
+        return ['seconds' => $totalSeconds, 'events' => $events, 'details' => $details];
     }
 }
