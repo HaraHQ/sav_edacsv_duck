@@ -64,7 +64,7 @@ class EdaService
 
     private function getFilteredFolders(array $filters)
     {
-        $folders = glob($this->edaFilesPath . '\\*', GLOB_ONLYDIR);
+        $folders = glob($this->edaFilesPath . '/*', GLOB_ONLYDIR);
         
         if (isset($filters['acReg'])) {
             $folders = array_filter($folders, function($folder) use ($filters) {
@@ -83,7 +83,7 @@ class EdaService
         $csvFiles = [];
         
         foreach ($folders as $folder) {
-            $files = glob($folder . '\\*.csv');
+            $files = glob($folder . '/*.csv');
             
             foreach ($files as $file) {
                 $fileName = basename($file);
