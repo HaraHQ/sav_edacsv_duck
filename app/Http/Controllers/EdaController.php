@@ -82,13 +82,6 @@ class EdaController extends BaseController
             ], 500);
         }
     }
-    
-    private function processInBackground($jobId, $zipFile, $basePath)
-    {
-        $command = 'php ' . base_path('artisan') . ' eda:process "' . $jobId . '" "' . $zipFile . '" "' . $basePath . '" > nul 2>&1 &';
-        exec($command);
-    }
-
     public function upload(Request $request)
     {
         ini_set('log_errors', 1);
@@ -111,15 +104,37 @@ class EdaController extends BaseController
                 throw new \Exception('Only ZIP files are allowed');
             }
 
-            // Save file quickly and create job
-            $tempFilePath = sys_get_temp_dir() . '\\' . uniqid('eda_upload_') . '.zip';
-            $file->move(dirname($tempFilePath), basename($tempFilePath));
-
-            // Create job with status tracking
-            $jobId = ProcessJob::create($fileName, 'created');
+            // Save file to storage/files
+            $filesDir = storage_path('files');
+            if (!is_dir($filesDir)) {
+                mkdir($filesDir, 0755, true);
+            }
             
-            // Process in background
-            $this->processInBackground($jobId, $tempFilePath, env('EDA_FILES_PATH'));
+            $savedFileName = uniqid('eda_') . '_' . $fileName;
+            $filePath = $filesDir . '\\' . $savedFileName;
+            $file->move($filesDir, $savedFileName);
+
+            // Create job ID
+            $jobId = uniqid('job_');
+            
+            // Create job JSON for queue processor
+            $queueDir = storage_path('queue');
+            if (!is_dir($queueDir)) {
+                mkdir($queueDir, 0755, true);
+            }
+            
+            $jobData = [
+                'id' => $jobId,
+                'file_name' => $fileName,
+                'file_path' => $filePath,
+                'status' => 'pending',
+                'created_at' => date('Y-m-d H:i:s')
+            ];
+            
+            file_put_contents(
+                $queueDir . '\\' . $jobId . '.json',
+                json_encode($jobData, JSON_PRETTY_PRINT)
+            );
             
             $elapsed = round(microtime(true) - $startTime, 2);
 
