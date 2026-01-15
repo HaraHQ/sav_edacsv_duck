@@ -248,26 +248,27 @@ class EdaService
         }
         
         $tempSqlFile = tempnam(sys_get_temp_dir(), 'duckdb_query') . '.sql';
+        $tempDir = sys_get_temp_dir();
         $memoryLimit = env('DUCKDB_MEMORY', '12GB');
         $threads = env('DUCKDB_VCPU', 4);
-        $fullSql = "PRAGMA memory_limit='$memoryLimit';\nPRAGMA threads=$threads;\n" . $sql;
+        $fullSql = "PRAGMA temp_directory='$tempDir';\nPRAGMA memory_limit='$memoryLimit';\nPRAGMA threads=$threads;\n" . $sql;
         file_put_contents($tempSqlFile, $fullSql);
         
-        $command = '"' . $this->duckdbPath . '" -json < "' . $tempSqlFile . '"';
-        $output = shell_exec($command . ' 2>&1');
-        
-        unlink($tempSqlFile);
-        
-        if (empty($output)) {
-            return ['debug' => 'Empty output', 'sql' => $sql];
+        try {
+            $command = '"' . $this->duckdbPath . '" -json < "' . $tempSqlFile . '"';
+            $output = shell_exec($command . ' 2>&1');
+            
+            if (empty($output)) {
+                return ['debug' => 'Empty output', 'sql' => $sql];
+            }
+            
+            $result = $this->parseDuckDbOutput($output);
+            return $result;
+        } finally {
+            @unlink($tempSqlFile);
+            $this->cleanupDuckDbTempFiles();
+            gc_collect_cycles();
         }
-        
-        $result = $this->parseDuckDbOutput($output);
-        
-        // Force garbage collection to free memory
-        gc_collect_cycles();
-        
-        return $result;
     }
 
     private function parseDuckDbOutput($output)
@@ -818,26 +819,27 @@ class EdaService
     private function executeDuckDbQuery($sql)
     {
         $tempSqlFile = tempnam(sys_get_temp_dir(), 'duckdb_query') . '.sql';
+        $tempDir = sys_get_temp_dir();
         $memoryLimit = env('DUCKDB_MEMORY', '12GB');
         $threads = env('DUCKDB_VCPU', 4);
-        $fullSql = "PRAGMA memory_limit='$memoryLimit';\nPRAGMA threads=$threads;\n" . $sql;
+        $fullSql = "PRAGMA temp_directory='$tempDir';\nPRAGMA memory_limit='$memoryLimit';\nPRAGMA threads=$threads;\n" . $sql;
         file_put_contents($tempSqlFile, $fullSql);
         
-        $command = '"' . $this->duckdbPath . '" -json < "' . $tempSqlFile . '"';
-        $output = shell_exec($command . ' 2>&1');
-        
-        unlink($tempSqlFile);
-        
-        if (empty($output)) {
-            return ['debug' => 'Empty output', 'sql' => $sql];
+        try {
+            $command = '"' . $this->duckdbPath . '" -json < "' . $tempSqlFile . '"';
+            $output = shell_exec($command . ' 2>&1');
+            
+            if (empty($output)) {
+                return ['debug' => 'Empty output', 'sql' => $sql];
+            }
+            
+            $result = $this->parseDuckDbOutput($output);
+            return $result;
+        } finally {
+            @unlink($tempSqlFile);
+            $this->cleanupDuckDbTempFiles();
+            gc_collect_cycles();
         }
-        
-        $result = $this->parseDuckDbOutput($output);
-        
-        // Force garbage collection to free memory
-        gc_collect_cycles();
-        
-        return $result;
     }
 
     public function calculateOverlimitTimeSeconds(array $filters, $torqueLimit)
@@ -927,5 +929,26 @@ class EdaService
         fclose($handle);
         
         return ['seconds' => $totalSeconds, 'events' => $events, 'details' => $details];
+    }
+
+    private function cleanupDuckDbTempFiles()
+    {
+        $tempDir = sys_get_temp_dir();
+        $patterns = [
+            'duckdb_temp_storage_*.tmp',
+            'duckdb_temp_*.db',
+            'duckdb_query*.sql'
+        ];
+        
+        foreach ($patterns as $pattern) {
+            $files = glob($tempDir . DIRECTORY_SEPARATOR . $pattern);
+            if ($files) {
+                foreach ($files as $file) {
+                    if (file_exists($file) && (time() - filemtime($file)) > 300) {
+                        @unlink($file);
+                    }
+                }
+            }
+        }
     }
 }
