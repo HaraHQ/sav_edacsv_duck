@@ -75,9 +75,9 @@ $app->configure('queue');
 |
 */
 
-// $app->middleware([
-//     App\Http\Middleware\ExampleMiddleware::class
-// ]);
+$app->middleware([
+    App\Http\Middleware\CorsMiddleware::class
+]);
 
 $app->routeMiddleware([
     'jwt' => App\Http\Middleware\JwtMiddleware::class,
