@@ -4,7 +4,7 @@
  * Run this periodically via cron/scheduler to clean orphaned temp files
  * 
  * Usage: php cleanup_temp.php
- * Cron: */5 * * * * php /path/to/cleanup_temp.php
+ * Cron: Run every 5 minutes - php /path/to/cleanup_temp.php
  */
 
 $tempDir = sys_get_temp_dir();
