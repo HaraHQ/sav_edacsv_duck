@@ -111,7 +111,7 @@ class EdaController extends BaseController
             }
             
             $savedFileName = uniqid('eda_') . '_' . $fileName;
-            $filePath = $filesDir . '\\' . $savedFileName;
+            $filePath = $filesDir . DIRECTORY_SEPARATOR . $savedFileName;
             $file->move($filesDir, $savedFileName);
 
             // Create job ID
@@ -132,7 +132,7 @@ class EdaController extends BaseController
             ];
             
             file_put_contents(
-                $queueDir . '\\' . $jobId . '.json',
+                $queueDir . DIRECTORY_SEPARATOR . $jobId . '.json',
                 json_encode($jobData, JSON_PRETTY_PRINT)
             );
             
@@ -163,7 +163,7 @@ class EdaController extends BaseController
 
         $files = array_diff(scandir($dir), ['.', '..']);
         foreach ($files as $file) {
-            $path = $dir . '\\' . $file;
+            $path = $dir . DIRECTORY_SEPARATOR . $file;
             is_dir($path) ? $this->removeDirectory($path) : unlink($path);
         }
         rmdir($dir);
