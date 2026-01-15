@@ -1,6 +1,6 @@
 <?php
 
-function createJwtToken($secret, $expirationMinutes = 1) {
+function createJwtToken($secret, $expirationMinutes = 30) {
     $header = json_encode(['typ' => 'JWT', 'alg' => 'HS256']);
     $payload = json_encode(['exp' => time() + ($expirationMinutes * 60)]);
     
@@ -13,8 +13,10 @@ function createJwtToken($secret, $expirationMinutes = 1) {
     return "$headerEncoded.$payloadEncoded.$signatureEncoded";
 }
 
-// 48 hours = 2880 minutes
-$token = createJwtToken('potash_copper_coal', 2880);
-echo "48-hour JWT Token:\n\n";
+$secret = getenv('JWT_SECRET') ?: 'potash_copper_coal';
+$expirationMinutes = getenv('JWT_EXPIRATION_MINUTES') ?: 30;
+
+$token = createJwtToken($secret, $expirationMinutes);
+echo "JWT Token (expires in {$expirationMinutes} minutes):\n\n";
 echo $token . "\n\n";
-echo "Expires: " . date('Y-m-d H:i:s', time() + (2880 * 60)) . "\n";
+echo "Expires: " . date('Y-m-d H:i:s', time() + ($expirationMinutes * 60)) . "\n";
