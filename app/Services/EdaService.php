@@ -490,18 +490,6 @@ class EdaService
             $date = trim($data[$dateColumnIndex]);
             $time = trim($data[$timeColumnIndex]);
             
-            // Filter by original date range if provided
-            if ($originalFilters && isset($originalFilters['dateStart']) && isset($originalFilters['dateEnd'])) {
-                $rowDate = Carbon::parse($date);
-                $startDate = Carbon::parse($originalFilters['dateStart']);
-                $endDate = Carbon::parse($originalFilters['dateEnd']);
-                
-                if ($rowDate->lt($startDate) || $rowDate->gt($endDate)) {
-                    $rowCount++;
-                    continue; // Skip rows outside original date range
-                }
-            }
-            
             try {
                 // Handle different date formats
                 if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
