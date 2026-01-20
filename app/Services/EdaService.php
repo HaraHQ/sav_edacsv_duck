@@ -420,12 +420,6 @@ class EdaService
             }
             
             $fileData = $this->getFileOverlimitEvents($csvFileInfo['path'], $torqueLimit, $acRegFromFile, $icaoCode, $originalFilters);
-            $results[$acRegFromFile]['total_overlimit_events'] += $fileData['events'];
-            $results[$acRegFromFile]['total_overlimit_duration'] = $this->addDurations(
-                $results[$acRegFromFile]['total_overlimit_duration'], 
-                $fileData['duration']
-            );
-            
             $overlimitDetails = array_merge($overlimitDetails, $fileData['details']);
         }
         
@@ -434,6 +428,16 @@ class EdaService
             $childData = $this->getFlightDetailsFromDatabase($overlimitDetails, $acReg);
             if (!empty($childData)) {
                 $results[$acReg]['child_data'] = $childData;
+                
+                // Recalculate totals from actual child_data (after timezone filtering)
+                $totalEvents = count($childData);
+                $totalDuration = '00:00:00';
+                foreach ($childData as $child) {
+                    $totalDuration = $this->addDurations($totalDuration, $child['duration'] ?? '00:00:00');
+                }
+                
+                $results[$acReg]['total_overlimit_events'] = $totalEvents;
+                $results[$acReg]['total_overlimit_duration'] = $totalDuration;
             }
         }
         
