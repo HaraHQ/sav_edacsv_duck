@@ -1,0 +1,17 @@
+[Unit]
+Description=EDA Queue Processor
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/var/www/eda
+ExecStart=/usr/bin/php /var/www/eda/process_queue.php
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
