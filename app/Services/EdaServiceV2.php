@@ -63,6 +63,19 @@ class EdaServiceV2
                     $torqueData = $this->calculateTorqueForCsv($csvFile, $torqueLimit);
                     
                     if ($torqueData['total_overlimit_events'] > 0) {
+                        // Get crew info from AFML
+                        $crewInfo = DB::table('afml as a')
+                            ->select([
+                                'tu_1.full_name as captain',
+                                'tu_2.full_name as copilot',
+                                'tu_3.full_name as engineer'
+                            ])
+                            ->leftJoin('tb_user as tu_1', 'tu_1.id', '=', 'a.captain_user_id')
+                            ->leftJoin('tb_user as tu_2', 'tu_2.id', '=', 'a.copilot_user_id')
+                            ->leftJoin('tb_user as tu_3', 'tu_3.id', '=', 'a.engineer_user_id')
+                            ->where('a.id', $afml->id)
+                            ->first();
+                        
                         $results[] = [
                             'page_no' => $afml->page_no,
                             'date' => $afml->date,
@@ -72,6 +85,9 @@ class EdaServiceV2
                             'csv_file' => basename($csvFile),
                             'overlimit_events' => $torqueData['total_overlimit_events'],
                             'overlimit_duration' => $torqueData['total_overlimit_duration'],
+                            'captain' => $crewInfo->captain ?? '',
+                            'copilot' => $crewInfo->copilot ?? '',
+                            'engineer' => $crewInfo->engineer ?? '',
                             'details' => $torqueData['details']
                         ];
                     }
