@@ -389,7 +389,8 @@ class EdaService
             return [];
         }
 
-        $result = $this->calculateOverlimitEventsWithFlightDetails($csvFiles, $torqueLimit, $filters['acReg'] ?? null, $originalFilters);
+        // Pass originalFilters to ensure proper date filtering after timezone adjustment
+        $result = $this->calculateOverlimitEventsWithFlightDetails($csvFiles, $torqueLimit, $filters['acReg'] ?? null, $originalFilters ?: $filters);
         error_log('Final result: ' . json_encode($result));
         
         return $result;
@@ -425,7 +426,7 @@ class EdaService
         
         // Get flight details from database for overlimit events
         if (!empty($overlimitDetails) && $acReg) {
-            $childData = $this->getFlightDetailsFromDatabase($overlimitDetails, $acReg);
+            $childData = $this->getFlightDetailsFromDatabase($overlimitDetails, $acReg, $originalFilters);
             if (!empty($childData)) {
                 $results[$acReg]['child_data'] = $childData;
                 
@@ -568,7 +569,7 @@ class EdaService
         return sprintf('%02d:%02d:%02d', $hours, $minutes, $seconds);
     }
     
-    private function getFlightDetailsFromDatabase($overlimitDetails, $acReg)
+    private function getFlightDetailsFromDatabase($overlimitDetails, $acReg, $originalFilters = null)
     {
         if (empty($overlimitDetails) || empty($acReg)) {
             return [];
@@ -616,21 +617,32 @@ class EdaService
                 ->first();
         
             if ($row) {
-                // Calculate timezone-adjusted time
+                // Calculate timezone-adjusted datetime
                 $adjustedTime = $time;
+                $adjustedDate = $row->date;
                 if ($row->from_timezone && $time) {
                     try {
-                        $timeCarbon = Carbon::createFromFormat('H:i:s', $time);
-                        $timeCarbon->addHours($row->from_timezone);
-                        $adjustedTime = $timeCarbon->format('H:i:s');
-                    } catch (Exception $e) {
+                        $dateTimeCarbon = Carbon::createFromFormat('Y-m-d H:i:s', $row->date . ' ' . $time);
+                        $dateTimeCarbon->addHours($row->from_timezone);
+                        $adjustedTime = $dateTimeCarbon->format('H:i:s');
+                        $adjustedDate = $dateTimeCarbon->format('Y-m-d');
+                    } catch (\Exception $e) {
                         // Keep original time if parsing fails
                     }
                 }
                 
+                // Filter out records outside the requested date range
+                if ($originalFilters) {
+                    $dateStart = $originalFilters['dateStart'] ?? null;
+                    $dateEnd = $originalFilters['dateEnd'] ?? null;
+                    
+                    if ($dateStart && $adjustedDate < $dateStart) continue;
+                    if ($dateEnd && $adjustedDate > $dateEnd) continue;
+                }
+                
                 $childData[] = [
                     'page_no' => $row->page_no,
-                    'date' => $row->date,
+                    'date' => $adjustedDate,
                     'time' => $adjustedTime,
                     'duration' => $duration ?: '00:00:00',
                     'from' => $row->from_code ?? '',
