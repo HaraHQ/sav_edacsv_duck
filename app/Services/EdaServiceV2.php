@@ -77,6 +77,7 @@ class EdaServiceV2
                             ->first();
                         
                         $results[] = [
+                            'afml_id' => $afml->id,
                             'page_no' => $afml->page_no,
                             'date' => $afml->date,
                             'from' => $flight->from_code,
