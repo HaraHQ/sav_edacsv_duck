@@ -587,20 +587,38 @@ class EdaService
 
         $childData = [];
         foreach ($overlimitDetails as $detail) {
-            $date = $detail['date'] ?? null;
+            $utcDate = $detail['date'] ?? null;
+            $utcTime = $detail['time'] ?? null;
             $icao = $detail['icao'] ?? null;
-            $time = $detail['time'] ?? null;
             $duration = $detail['duration'] ?? null;
             
-            if (!$date || !$icao) continue;
+            if (!$utcDate || !$utcTime || !$icao) continue;
 
+            // First, get timezone for this ICAO to convert UTC to local date
+            $iataInfo = DB::table('iata')
+                ->select('timezone')
+                ->where('icao_code', $icao)
+                ->first();
+            
+            $timezone = $iataInfo ? $iataInfo->timezone : 0;
+            
+            // Convert UTC datetime to local datetime to get the correct AFML date
+            try {
+                $utcDateTime = Carbon::createFromFormat('Y-m-d H:i:s', $utcDate . ' ' . $utcTime);
+                $localDateTime = $utcDateTime->copy()->addHours($timezone);
+                $localDate = $localDateTime->format('Y-m-d');
+                $localTime = $localDateTime->format('H:i:s');
+            } catch (\Exception $e) {
+                continue;
+            }
+
+            // Query AFML using the local date (not UTC date)
             $row = DB::table('afml as a')
                 ->select([
                     'a.date',
                     'a.page_no',
                     'it_from.code as from_code',
                     'it_to.code as to_code',
-                    'it_from.timezone as from_timezone',
                     'tu_1.full_name as captain',
                     'tu_2.full_name as copilot',
                     'tu_3.full_name as engineer'
@@ -611,39 +629,25 @@ class EdaService
                 ->leftJoin('tb_user as tu_1', 'tu_1.id', '=', 'a.captain_user_id')
                 ->leftJoin('tb_user as tu_2', 'tu_2.id', '=', 'a.copilot_user_id')
                 ->leftJoin('tb_user as tu_3', 'tu_3.id', '=', 'a.engineer_user_id')
-                ->where('a.date', $date)
+                ->where('a.date', $localDate)
                 ->where('a.aircraft_id', $aircraft->id)
                 ->where('it_from.icao_code', $icao)
                 ->first();
         
             if ($row) {
-                // Calculate timezone-adjusted datetime
-                $adjustedTime = $time;
-                $adjustedDate = $row->date;
-                if ($row->from_timezone && $time) {
-                    try {
-                        $dateTimeCarbon = Carbon::createFromFormat('Y-m-d H:i:s', $row->date . ' ' . $time);
-                        $dateTimeCarbon->addHours($row->from_timezone);
-                        $adjustedTime = $dateTimeCarbon->format('H:i:s');
-                        $adjustedDate = $dateTimeCarbon->format('Y-m-d');
-                    } catch (\Exception $e) {
-                        // Keep original time if parsing fails
-                    }
-                }
-                
                 // Filter out records outside the requested date range
                 if ($originalFilters) {
                     $dateStart = $originalFilters['dateStart'] ?? null;
                     $dateEnd = $originalFilters['dateEnd'] ?? null;
                     
-                    if ($dateStart && $adjustedDate < $dateStart) continue;
-                    if ($dateEnd && $adjustedDate > $dateEnd) continue;
+                    if ($dateStart && $localDate < $dateStart) continue;
+                    if ($dateEnd && $localDate > $dateEnd) continue;
                 }
                 
                 $childData[] = [
                     'page_no' => $row->page_no,
-                    'date' => $adjustedDate,
-                    'time' => $adjustedTime,
+                    'date' => $localDate,
+                    'time' => $localTime,
                     'duration' => $duration ?: '00:00:00',
                     'from' => $row->from_code ?? '',
                     'to' => $row->to_code ?? '',
