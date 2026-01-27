@@ -26,6 +26,10 @@ $router->group(['middleware' => 'jwt'], function () use ($router) {
     $router->post('/eda/torque_limit/data', 'EdaController@torqueLimitData');
     $router->post('/eda/torque_limit/chart', 'EdaController@torqueLimitChart');
     $router->post('/eda/test/files', 'EdaController@testFiles');
+    
+    // V2 endpoints - AFML-driven approach
+    $router->post('/eda/v2/torque_limit/by_afml', 'EdaV2Controller@torqueLimitByAfml');
+    
     $router->get('/eda/upload-test', function() {
         return response()->json(['test' => 'Upload endpoint accessible', 'php_version' => phpversion()]);
     });
