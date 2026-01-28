@@ -45,7 +45,6 @@ class EdaServiceV2
             $flights = DB::table('afml_detail as ad')
                 ->select([
                     'ad.id',
-                    'ad.date as flight_date',
                     'ad.to as takeoff_time',
                     'it_from.code as from_code',
                     'it_from.icao_code as from_icao',
@@ -58,8 +57,7 @@ class EdaServiceV2
 
             // Step 4: For each flight, find matching CSV and calculate torque
             foreach ($flights as $flight) {
-                $flightDate = $flight->flight_date ?? $afml->date;
-                $csvFile = $this->findCsvForFlight($acReg, $flightDate, $flight->takeoff_time, $flight->from_icao);
+                $csvFile = $this->findCsvForFlight($acReg, $afml->date, $flight->takeoff_time, $flight->from_icao);
                 
                 if ($csvFile) {
                     $torqueData = $this->calculateTorqueForCsv($csvFile, $torqueLimit);
@@ -108,15 +106,6 @@ class EdaServiceV2
 
     private function findCsvForFlight($acReg, $date, $takeoffTime, $icao)
     {
-        // Convert date to YYMMDD format
-        $dateCarbon = Carbon::parse($date);
-        $dateStr = $dateCarbon->format('ymd');
-        
-        // Convert takeoff time (minutes) to HHMMSS format
-        $hours = floor($takeoffTime / 60);
-        $minutes = $takeoffTime % 60;
-        $timeStr = sprintf('%02d%02d', $hours, $minutes);
-
         // Find aircraft folder
         $folders = glob($this->edaFilesPath . '/*', GLOB_ONLYDIR);
         $targetFolder = null;
@@ -133,23 +122,32 @@ class EdaServiceV2
             return null;
         }
 
-        // Find CSV file matching date, time (±5 min), and ICAO
-        $csvFiles = glob($targetFolder . '/log_' . $dateStr . '_*.csv');
+        // Search for CSV files across ±1 day from AFML date to handle flights spanning multiple days
+        $dateCarbon = Carbon::parse($date);
+        $datesToSearch = [
+            $dateCarbon->copy()->subDay()->format('ymd'),
+            $dateCarbon->format('ymd'),
+            $dateCarbon->copy()->addDay()->format('ymd')
+        ];
         
-        foreach ($csvFiles as $csvFile) {
-            $fileName = basename($csvFile);
-            if (preg_match('/log_\d{6}_(\d{6})_([A-Z]{4})\.csv$/', $fileName, $matches)) {
-                $fileTime = $matches[1];
-                $fileIcao = $matches[2];
-                
-                if ($fileIcao === $icao) {
-                    // Check if time is within ±5 minutes
-                    $fileHour = intval(substr($fileTime, 0, 2));
-                    $fileMin = intval(substr($fileTime, 2, 2));
-                    $fileMinutes = $fileHour * 60 + $fileMin;
+        foreach ($datesToSearch as $dateStr) {
+            $csvFiles = glob($targetFolder . '/log_' . $dateStr . '_*.csv');
+            
+            foreach ($csvFiles as $csvFile) {
+                $fileName = basename($csvFile);
+                if (preg_match('/log_\d{6}_(\d{6})_([A-Z]{4})\.csv$/', $fileName, $matches)) {
+                    $fileTime = $matches[1];
+                    $fileIcao = $matches[2];
                     
-                    if (abs($fileMinutes - $takeoffTime) <= 5) {
-                        return $csvFile;
+                    if ($fileIcao === $icao) {
+                        // Check if time is within ±5 minutes
+                        $fileHour = intval(substr($fileTime, 0, 2));
+                        $fileMin = intval(substr($fileTime, 2, 2));
+                        $fileMinutes = $fileHour * 60 + $fileMin;
+                        
+                        if (abs($fileMinutes - $takeoffTime) <= 5) {
+                            return $csvFile;
+                        }
                     }
                 }
             }
