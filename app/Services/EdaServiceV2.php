@@ -132,6 +132,7 @@ class EdaServiceV2
             $dateCarbon->copy()->addDays(2)->format('ymd')
         ];
         
+        // First try: exact ICAO match with time tolerance
         foreach ($datesToSearch as $dateStr) {
             $csvFiles = glob($targetFolder . '/log_' . $dateStr . '_*.csv');
             
@@ -142,15 +143,18 @@ class EdaServiceV2
                     $fileIcao = $matches[2];
                     
                     if ($fileIcao === $icao) {
-                        // Check if time is within ±30 minutes to account for timezone differences
                         $fileHour = intval(substr($fileTime, 0, 2));
                         $fileMin = intval(substr($fileTime, 2, 2));
                         $fileMinutes = $fileHour * 60 + $fileMin;
                         
-                        // Handle day boundary crossing
-                        $timeDiff = abs($fileMinutes - $takeoffTime);
-                        if ($timeDiff <= 30 || $timeDiff >= (1440 - 30)) {
-                            return $csvFile;
+                        // Try multiple timezone offsets: UTC+0, UTC+7, UTC+8
+                        $offsets = [0, 420, 480]; // 0, +7 hours, +8 hours in minutes
+                        foreach ($offsets as $offset) {
+                            $adjustedFileMinutes = ($fileMinutes + $offset) % 1440;
+                            $timeDiff = abs($adjustedFileMinutes - $takeoffTime);
+                            if ($timeDiff <= 30 || $timeDiff >= (1440 - 30)) {
+                                return $csvFile;
+                            }
                         }
                     }
                 }
