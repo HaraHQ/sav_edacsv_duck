@@ -122,12 +122,14 @@ class EdaServiceV2
             return null;
         }
 
-        // Search for CSV files across ±1 day from AFML date to handle flights spanning multiple days
+        // Search for CSV files across ±2 days from AFML date to handle flights spanning multiple days and timezone differences
         $dateCarbon = Carbon::parse($date);
         $datesToSearch = [
+            $dateCarbon->copy()->subDays(2)->format('ymd'),
             $dateCarbon->copy()->subDay()->format('ymd'),
             $dateCarbon->format('ymd'),
-            $dateCarbon->copy()->addDay()->format('ymd')
+            $dateCarbon->copy()->addDay()->format('ymd'),
+            $dateCarbon->copy()->addDays(2)->format('ymd')
         ];
         
         foreach ($datesToSearch as $dateStr) {
@@ -140,12 +142,14 @@ class EdaServiceV2
                     $fileIcao = $matches[2];
                     
                     if ($fileIcao === $icao) {
-                        // Check if time is within ±5 minutes
+                        // Check if time is within ±30 minutes to account for timezone differences
                         $fileHour = intval(substr($fileTime, 0, 2));
                         $fileMin = intval(substr($fileTime, 2, 2));
                         $fileMinutes = $fileHour * 60 + $fileMin;
                         
-                        if (abs($fileMinutes - $takeoffTime) <= 5) {
+                        // Handle day boundary crossing
+                        $timeDiff = abs($fileMinutes - $takeoffTime);
+                        if ($timeDiff <= 30 || $timeDiff >= (1440 - 30)) {
                             return $csvFile;
                         }
                     }
