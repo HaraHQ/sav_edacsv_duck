@@ -122,7 +122,7 @@ class EdaServiceV2
             return null;
         }
 
-        // Search for CSV files across ±2 days from AFML date to handle flights spanning multiple days and timezone differences
+        // Search for CSV files across ±2 days from AFML date
         $dateCarbon = Carbon::parse($date);
         $datesToSearch = [
             $dateCarbon->copy()->subDays(2)->format('ymd'),
@@ -132,7 +132,10 @@ class EdaServiceV2
             $dateCarbon->copy()->addDays(2)->format('ymd')
         ];
         
-        // First try: exact ICAO match with time tolerance
+        // Match by ICAO code and time proximity
+        $bestMatch = null;
+        $bestTimeDiff = PHP_INT_MAX;
+        
         foreach ($datesToSearch as $dateStr) {
             $csvFiles = glob($targetFolder . '/log_' . $dateStr . '_*.csv');
             
@@ -147,21 +150,23 @@ class EdaServiceV2
                         $fileMin = intval(substr($fileTime, 2, 2));
                         $fileMinutes = $fileHour * 60 + $fileMin;
                         
-                        // Try multiple timezone offsets: UTC+0, UTC+7, UTC+8
-                        $offsets = [0, 420, 480]; // 0, +7 hours, +8 hours in minutes
-                        foreach ($offsets as $offset) {
-                            $adjustedFileMinutes = ($fileMinutes + $offset) % 1440;
-                            $timeDiff = abs($adjustedFileMinutes - $takeoffTime);
-                            if ($timeDiff <= 30 || $timeDiff >= (1440 - 30)) {
-                                return $csvFile;
-                            }
+                        // Calculate time difference (handle day boundary)
+                        $timeDiff = abs($fileMinutes - $takeoffTime);
+                        if ($timeDiff > 720) {
+                            $timeDiff = 1440 - $timeDiff;
+                        }
+                        
+                        // Keep track of closest match
+                        if ($timeDiff < $bestTimeDiff) {
+                            $bestTimeDiff = $timeDiff;
+                            $bestMatch = $csvFile;
                         }
                     }
                 }
             }
         }
 
-        return null;
+        return $bestMatch;
     }
 
     private function calculateTorqueForCsv($filePath, $limit)
