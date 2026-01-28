@@ -45,6 +45,7 @@ class EdaServiceV2
             $flights = DB::table('afml_detail as ad')
                 ->select([
                     'ad.id',
+                    'ad.date as flight_date',
                     'ad.to as takeoff_time',
                     'it_from.code as from_code',
                     'it_from.icao_code as from_icao',
@@ -57,7 +58,8 @@ class EdaServiceV2
 
             // Step 4: For each flight, find matching CSV and calculate torque
             foreach ($flights as $flight) {
-                $csvFile = $this->findCsvForFlight($acReg, $afml->date, $flight->takeoff_time, $flight->from_icao);
+                $flightDate = $flight->flight_date ?? $afml->date;
+                $csvFile = $this->findCsvForFlight($acReg, $flightDate, $flight->takeoff_time, $flight->from_icao);
                 
                 if ($csvFile) {
                     $torqueData = $this->calculateTorqueForCsv($csvFile, $torqueLimit);
