@@ -175,24 +175,47 @@ class EdaServiceV2
         $handle = fopen($filePath, 'r');
         if (!$handle) return null;
         
-        fgets($handle); fgets($handle);
-        $headerLine = fgets($handle);
-        $headers = str_getcsv(trim($headerLine));
+        // Skip line 1 (metadata) and line 2 (empty)
+        fgets($handle);
+        fgets($handle);
         
-        $dateColumnIndex = array_search('Lcl Date', array_map('trim', $headers));
+        // Line 3: headers
+        $headerLine = fgets($handle);
+        if (!$headerLine) {
+            fclose($handle);
+            return null;
+        }
+        
+        $headers = str_getcsv(trim($headerLine));
+        $dateColumnIndex = false;
+        
+        foreach ($headers as $index => $header) {
+            if (trim($header) === 'Lcl Date') {
+                $dateColumnIndex = $index;
+                break;
+            }
+        }
+        
         if ($dateColumnIndex === false) {
             fclose($handle);
             return null;
         }
         
+        // Skip lines 4-5 (empty data rows)
+        fgets($handle);
+        fgets($handle);
+        
+        // Line 6: first real data
         $line = fgets($handle);
+        fclose($handle);
+        
         if ($line) {
             $data = str_getcsv($line);
-            fclose($handle);
-            return isset($data[$dateColumnIndex]) ? trim($data[$dateColumnIndex]) : null;
+            if (isset($data[$dateColumnIndex]) && !empty(trim($data[$dateColumnIndex]))) {
+                return trim($data[$dateColumnIndex]);
+            }
         }
         
-        fclose($handle);
         return null;
     }
 
