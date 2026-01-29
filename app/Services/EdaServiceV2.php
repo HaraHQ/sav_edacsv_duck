@@ -97,6 +97,11 @@ class EdaServiceV2
             }
         }
 
+        // Sort results by date ascending
+        usort($results, function($a, $b) {
+            return strcmp($a['date'], $b['date']);
+        });
+
         return [
             'acReg' => $acReg,
             'torque_limit' => $torqueLimit,
@@ -123,14 +128,12 @@ class EdaServiceV2
             return null;
         }
 
-        // Search for CSV files across ±2 days from AFML date
+        // Search for CSV files across ±1 day from AFML date
         $dateCarbon = Carbon::parse($date);
         $datesToSearch = [
-            $dateCarbon->copy()->subDays(2)->format('ymd'),
             $dateCarbon->copy()->subDay()->format('ymd'),
             $dateCarbon->format('ymd'),
-            $dateCarbon->copy()->addDay()->format('ymd'),
-            $dateCarbon->copy()->addDays(2)->format('ymd')
+            $dateCarbon->copy()->addDay()->format('ymd')
         ];
         
         // Match by ICAO code and time proximity
