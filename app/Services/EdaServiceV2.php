@@ -60,6 +60,7 @@ class EdaServiceV2
                 $csvFile = $this->findCsvForFlight($acReg, $afml->date, $flight->takeoff_time, $flight->from_icao);
                 
                 if ($csvFile) {
+                    $flightDate = $this->getDateFromCsv($csvFile);
                     $torqueData = $this->calculateTorqueForCsv($csvFile, $torqueLimit);
                     
                     // Get crew info from AFML
@@ -79,7 +80,7 @@ class EdaServiceV2
                         $results[] = [
                             'afml_id' => $afml->id,
                             'page_no' => $afml->page_no,
-                            'date' => $afml->date,
+                            'date' => $flightDate ?? $afml->date,
                             'from' => $flight->from_code,
                             'to' => $flight->to_code,
                             'takeoff_time' => $flight->takeoff_time,
@@ -167,6 +168,32 @@ class EdaServiceV2
         }
 
         return $bestMatch;
+    }
+
+    private function getDateFromCsv($filePath)
+    {
+        $handle = fopen($filePath, 'r');
+        if (!$handle) return null;
+        
+        fgets($handle); fgets($handle);
+        $headerLine = fgets($handle);
+        $headers = str_getcsv(trim($headerLine));
+        
+        $dateColumnIndex = array_search('Lcl Date', array_map('trim', $headers));
+        if ($dateColumnIndex === false) {
+            fclose($handle);
+            return null;
+        }
+        
+        $line = fgets($handle);
+        if ($line) {
+            $data = str_getcsv($line);
+            fclose($handle);
+            return isset($data[$dateColumnIndex]) ? trim($data[$dateColumnIndex]) : null;
+        }
+        
+        fclose($handle);
+        return null;
     }
 
     private function calculateTorqueForCsv($filePath, $limit)
