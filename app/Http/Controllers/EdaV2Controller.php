@@ -22,6 +22,7 @@ class EdaV2Controller extends BaseController
             $dateStart = $request->input('dateStart');
             $dateEnd = $request->input('dateEnd');
             $torqueLimit = $request->input('torqueLimit');
+            $withEmpty = $request->input('withEmpty', false);
 
             if (!$acReg || !$dateStart || !$dateEnd || !$torqueLimit) {
                 return response()->json([
@@ -30,7 +31,7 @@ class EdaV2Controller extends BaseController
                 ], 400);
             }
 
-            $result = $this->edaService->getTorqueLimitByAfml($acReg, $dateStart, $dateEnd, $torqueLimit);
+            $result = $this->edaService->getTorqueLimitByAfml($acReg, $dateStart, $dateEnd, $torqueLimit, $withEmpty);
 
             return response()->json([
                 'success' => true,

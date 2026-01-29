@@ -14,7 +14,7 @@ class EdaServiceV2
         $this->edaFilesPath = env('EDA_FILES_PATH');
     }
 
-    public function getTorqueLimitByAfml($acReg, $dateStart, $dateEnd, $torqueLimit)
+    public function getTorqueLimitByAfml($acReg, $dateStart, $dateEnd, $torqueLimit, $withEmpty = false)
     {
         // Step 1: Get aircraft ID
         $aircraft = DB::table('aircraft')
@@ -76,7 +76,7 @@ class EdaServiceV2
                         ->where('a.id', $afml->id)
                         ->first();
                     
-                    if ($torqueData['total_overlimit_events'] > 0) {
+                    if ($torqueData['total_overlimit_events'] > 0 || $withEmpty) {
                         $results[] = [
                             'afml_id' => $afml->id,
                             'page_no' => $afml->page_no,
