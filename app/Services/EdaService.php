@@ -947,4 +947,318 @@ class EdaService
             }
         }
     }
+
+    public function getEngineRpmLimitData(array $filters, $rpmLimit, $originalFilters = null)
+    {
+        $folders = $this->getFilteredFolders($filters);
+        $csvFiles = $this->getFilteredCsvFiles($folders, $filters);
+        
+        if (empty($csvFiles)) {
+            return [];
+        }
+
+        return $this->calculateRpmOverlimitEventsWithFlightDetails($csvFiles, $rpmLimit, $filters['acReg'] ?? null, $originalFilters ?: $filters);
+    }
+    
+    private function calculateRpmOverlimitEventsWithFlightDetails($csvFiles, $rpmLimit, $acReg, $originalFilters = null)
+    {
+        $results = [];
+        $overlimitDetails = [];
+        
+        foreach ($csvFiles as $csvFileInfo) {
+            $acRegFromFile = $csvFileInfo['acReg'];
+            
+            $fileName = basename($csvFileInfo['path']);
+            $icaoCode = 'UNKNOWN';
+            if (preg_match('/log_\d{6}_\d{6}_([A-Z]{4})\.csv$/', $fileName, $matches)) {
+                $icaoCode = $matches[1];
+            }
+            
+            if (!isset($results[$acRegFromFile])) {
+                $results[$acRegFromFile] = [
+                    'AcReg' => $acRegFromFile,
+                    'rpm_limit' => $rpmLimit,
+                    'total_overlimit_events' => 0,
+                    'total_overlimit_duration' => '00:00:00',
+                    'child_data' => []
+                ];
+            }
+            
+            $fileData = $this->getFileRpmOverlimitEvents($csvFileInfo['path'], $rpmLimit, $acRegFromFile, $icaoCode, $originalFilters);
+            $overlimitDetails = array_merge($overlimitDetails, $fileData['details']);
+        }
+        
+        if (!empty($overlimitDetails) && $acReg) {
+            $childData = $this->getFlightDetailsFromDatabase($overlimitDetails, $acReg, $originalFilters);
+            if (!empty($childData)) {
+                $results[$acReg]['child_data'] = $childData;
+                
+                $totalEvents = count($childData);
+                $totalDuration = '00:00:00';
+                foreach ($childData as $child) {
+                    $totalDuration = $this->addDurations($totalDuration, $child['duration'] ?? '00:00:00');
+                }
+                
+                $results[$acReg]['total_overlimit_events'] = $totalEvents;
+                $results[$acReg]['total_overlimit_duration'] = $totalDuration;
+            }
+        }
+        
+        return [
+            'summary' => array_values($results),
+            'overlimit_details' => $overlimitDetails
+        ];
+    }
+    
+    private function getFileRpmOverlimitEvents($filePath, $limit, $acReg, $icaoCode, $originalFilters = null)
+    {
+        $handle = fopen($filePath, 'r');
+        if (!$handle) return ['events' => 0, 'duration' => '00:00', 'details' => []];
+        
+        fgets($handle); fgets($handle);
+        $headerLine = fgets($handle);
+        $headers = str_getcsv(trim($headerLine));
+        
+        $rpmColumnIndex = -1;
+        $dateColumnIndex = -1;
+        $timeColumnIndex = -1;
+        
+        foreach ($headers as $index => $header) {
+            $header = trim($header);
+            if ($header === 'E1 NP') $rpmColumnIndex = $index;
+            if ($header === 'Lcl Date') $dateColumnIndex = $index;
+            if ($header === 'Lcl Time') $timeColumnIndex = $index;
+        }
+        
+        if ($rpmColumnIndex === -1 || $dateColumnIndex === -1 || $timeColumnIndex === -1) {
+            fclose($handle);
+            return ['events' => 0, 'duration' => '00:00', 'details' => []];
+        }
+        
+        $events = 0;
+        $totalSeconds = 0;
+        $inOverlimit = false;
+        $overlimitStartTime = null;
+        $overlimitDetails = [];
+        $rowCount = 0;
+        $maxRows = env('EDA_DATA_LIMIT', 5000);
+        
+        while (($line = fgets($handle)) !== false && $rowCount < $maxRows) {
+            $data = str_getcsv($line);
+            if (count($data) <= max($rpmColumnIndex, $dateColumnIndex, $timeColumnIndex)) continue;
+            
+            $rpm = floatval(trim($data[$rpmColumnIndex]));
+            $date = trim($data[$dateColumnIndex]);
+            $time = trim($data[$timeColumnIndex]);
+            
+            try {
+                if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+                    $currentTime = Carbon::createFromFormat('Y-m-d H:i:s', $date . ' ' . $time);
+                } else {
+                    $currentTime = Carbon::parse($date . ' ' . $time);
+                }
+            } catch (Exception $e) {
+                continue;
+            }
+            
+            if ($rpm > $limit && !$inOverlimit) {
+                $inOverlimit = true;
+                $overlimitStartTime = $currentTime;
+                $events++;
+                
+                $overlimitDetails[] = [
+                    'date' => $date,
+                    'time' => $time,
+                    'acReg' => $acReg,
+                    'icao' => $icaoCode,
+                    'rpm' => $rpm,
+                    'limit' => $limit,
+                    'duration' => null,
+                    'start_datetime' => $currentTime
+                ];
+            } elseif ($rpm <= $limit && $inOverlimit) {
+                $inOverlimit = false;
+                if ($overlimitStartTime && !empty($overlimitDetails)) {
+                    $duration = $currentTime->diffInSeconds($overlimitStartTime);
+                    $totalSeconds += $duration;
+                    
+                    $lastIndex = count($overlimitDetails) - 1;
+                    $hours = intval($duration / 3600);
+                    $minutes = intval(($duration % 3600) / 60);
+                    $seconds = $duration % 60;
+                    $overlimitDetails[$lastIndex]['duration'] = sprintf('%02d:%02d:%02d', $hours, $minutes, $seconds);
+                    
+                    unset($overlimitDetails[$lastIndex]['start_datetime']);
+                }
+            }
+            
+            $rowCount++;
+        }
+        
+        fclose($handle);
+        
+        $hours = intval($totalSeconds / 3600);
+        $minutes = intval(($totalSeconds % 3600) / 60);
+        $seconds = $totalSeconds % 60;
+        $duration = sprintf('%02d:%02d:%02d', $hours, $minutes, $seconds);
+        
+        return ['events' => $events, 'duration' => $duration, 'details' => $overlimitDetails];
+    }
+
+    public function getEngineGasLimitData(array $filters, $percentageLimit, $originalFilters = null)
+    {
+        $folders = $this->getFilteredFolders($filters);
+        $csvFiles = $this->getFilteredCsvFiles($folders, $filters);
+        
+        if (empty($csvFiles)) {
+            return [];
+        }
+
+        return $this->calculateGasOverlimitEventsWithFlightDetails($csvFiles, $percentageLimit, $filters['acReg'] ?? null, $originalFilters ?: $filters);
+    }
+    
+    private function calculateGasOverlimitEventsWithFlightDetails($csvFiles, $percentageLimit, $acReg, $originalFilters = null)
+    {
+        $results = [];
+        $overlimitDetails = [];
+        
+        foreach ($csvFiles as $csvFileInfo) {
+            $acRegFromFile = $csvFileInfo['acReg'];
+            
+            $fileName = basename($csvFileInfo['path']);
+            $icaoCode = 'UNKNOWN';
+            if (preg_match('/log_\d{6}_\d{6}_([A-Z]{4})\.csv$/', $fileName, $matches)) {
+                $icaoCode = $matches[1];
+            }
+            
+            if (!isset($results[$acRegFromFile])) {
+                $results[$acRegFromFile] = [
+                    'AcReg' => $acRegFromFile,
+                    'percentage_limit' => $percentageLimit,
+                    'total_overlimit_events' => 0,
+                    'total_overlimit_duration' => '00:00:00',
+                    'child_data' => []
+                ];
+            }
+            
+            $fileData = $this->getFileGasOverlimitEvents($csvFileInfo['path'], $percentageLimit, $acRegFromFile, $icaoCode, $originalFilters);
+            $overlimitDetails = array_merge($overlimitDetails, $fileData['details']);
+        }
+        
+        if (!empty($overlimitDetails) && $acReg) {
+            $childData = $this->getFlightDetailsFromDatabase($overlimitDetails, $acReg, $originalFilters);
+            if (!empty($childData)) {
+                $results[$acReg]['child_data'] = $childData;
+                
+                $totalEvents = count($childData);
+                $totalDuration = '00:00:00';
+                foreach ($childData as $child) {
+                    $totalDuration = $this->addDurations($totalDuration, $child['duration'] ?? '00:00:00');
+                }
+                
+                $results[$acReg]['total_overlimit_events'] = $totalEvents;
+                $results[$acReg]['total_overlimit_duration'] = $totalDuration;
+            }
+        }
+        
+        return [
+            'summary' => array_values($results),
+            'overlimit_details' => $overlimitDetails
+        ];
+    }
+    
+    private function getFileGasOverlimitEvents($filePath, $limit, $acReg, $icaoCode, $originalFilters = null)
+    {
+        $handle = fopen($filePath, 'r');
+        if (!$handle) return ['events' => 0, 'duration' => '00:00', 'details' => []];
+        
+        fgets($handle); fgets($handle);
+        $headerLine = fgets($handle);
+        $headers = str_getcsv(trim($headerLine));
+        
+        $gasColumnIndex = -1;
+        $dateColumnIndex = -1;
+        $timeColumnIndex = -1;
+        
+        foreach ($headers as $index => $header) {
+            $header = trim($header);
+            if ($header === 'E1 NG') $gasColumnIndex = $index;
+            if ($header === 'Lcl Date') $dateColumnIndex = $index;
+            if ($header === 'Lcl Time') $timeColumnIndex = $index;
+        }
+        
+        if ($gasColumnIndex === -1 || $dateColumnIndex === -1 || $timeColumnIndex === -1) {
+            fclose($handle);
+            return ['events' => 0, 'duration' => '00:00', 'details' => []];
+        }
+        
+        $events = 0;
+        $totalSeconds = 0;
+        $inOverlimit = false;
+        $overlimitStartTime = null;
+        $overlimitDetails = [];
+        $rowCount = 0;
+        $maxRows = env('EDA_DATA_LIMIT', 5000);
+        
+        while (($line = fgets($handle)) !== false && $rowCount < $maxRows) {
+            $data = str_getcsv($line);
+            if (count($data) <= max($gasColumnIndex, $dateColumnIndex, $timeColumnIndex)) continue;
+            
+            $gas = floatval(trim($data[$gasColumnIndex]));
+            $date = trim($data[$dateColumnIndex]);
+            $time = trim($data[$timeColumnIndex]);
+            
+            try {
+                if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+                    $currentTime = Carbon::createFromFormat('Y-m-d H:i:s', $date . ' ' . $time);
+                } else {
+                    $currentTime = Carbon::parse($date . ' ' . $time);
+                }
+            } catch (Exception $e) {
+                continue;
+            }
+            
+            if ($gas > $limit && !$inOverlimit) {
+                $inOverlimit = true;
+                $overlimitStartTime = $currentTime;
+                $events++;
+                
+                $overlimitDetails[] = [
+                    'date' => $date,
+                    'time' => $time,
+                    'acReg' => $acReg,
+                    'icao' => $icaoCode,
+                    'gas' => $gas,
+                    'limit' => $limit,
+                    'duration' => null,
+                    'start_datetime' => $currentTime
+                ];
+            } elseif ($gas <= $limit && $inOverlimit) {
+                $inOverlimit = false;
+                if ($overlimitStartTime && !empty($overlimitDetails)) {
+                    $duration = $currentTime->diffInSeconds($overlimitStartTime);
+                    $totalSeconds += $duration;
+                    
+                    $lastIndex = count($overlimitDetails) - 1;
+                    $hours = intval($duration / 3600);
+                    $minutes = intval(($duration % 3600) / 60);
+                    $seconds = $duration % 60;
+                    $overlimitDetails[$lastIndex]['duration'] = sprintf('%02d:%02d:%02d', $hours, $minutes, $seconds);
+                    
+                    unset($overlimitDetails[$lastIndex]['start_datetime']);
+                }
+            }
+            
+            $rowCount++;
+        }
+        
+        fclose($handle);
+        
+        $hours = intval($totalSeconds / 3600);
+        $minutes = intval(($totalSeconds % 3600) / 60);
+        $seconds = $totalSeconds % 60;
+        $duration = sprintf('%02d:%02d:%02d', $hours, $minutes, $seconds);
+        
+        return ['events' => $events, 'duration' => $duration, 'details' => $overlimitDetails];
+    }
 }

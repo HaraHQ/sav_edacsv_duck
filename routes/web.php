@@ -25,6 +25,8 @@ $router->group(['middleware' => 'jwt'], function () use ($router) {
     $router->get('/eda/status', 'EdaController@jobStatus');
     $router->post('/eda/torque_limit/data', 'EdaController@torqueLimitData');
     $router->post('/eda/torque_limit/chart', 'EdaController@torqueLimitChart');
+    $router->post('/eda/engine_rpm_limit/data', 'EdaController@engineRpmLimitData');
+    $router->post('/eda/engine_gas_limit/data', 'EdaController@engineGasLimitData');
     $router->post('/eda/test/files', 'EdaController@testFiles');
     
     // V2 endpoints - AFML-driven approach

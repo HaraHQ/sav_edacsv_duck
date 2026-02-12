@@ -254,4 +254,74 @@ class EdaController extends BaseController
             ], 500);
         }
     }
+
+    public function engineRpmLimitData(Request $request)
+    {
+        try {
+            $rpmLimit = $request->input('rpmLimit');
+            if (!$rpmLimit) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'rpmLimit is required'
+                ], 400);
+            }
+
+            $filters = $request->except(['rpmLimit']);
+            $originalFilters = $filters;
+            
+            if (isset($filters['dateStart'])) {
+                $originalDate = \Carbon\Carbon::parse($filters['dateStart']);
+                $adjustedDate = $originalDate->subDay();
+                $filters['dateStart'] = $adjustedDate->format('Y-m-d');
+            }
+            
+            $result = $this->edaService->getEngineRpmLimitData($filters, $rpmLimit, $originalFilters);
+
+            return response()->json([
+                'success' => true,
+                'data' => $result,
+                'rpmLimit' => $rpmLimit
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function engineGasLimitData(Request $request)
+    {
+        try {
+            $percentageLimit = $request->input('percentageLimit');
+            if (!$percentageLimit) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'percentageLimit is required'
+                ], 400);
+            }
+
+            $filters = $request->except(['percentageLimit']);
+            $originalFilters = $filters;
+            
+            if (isset($filters['dateStart'])) {
+                $originalDate = \Carbon\Carbon::parse($filters['dateStart']);
+                $adjustedDate = $originalDate->subDay();
+                $filters['dateStart'] = $adjustedDate->format('Y-m-d');
+            }
+            
+            $result = $this->edaService->getEngineGasLimitData($filters, $percentageLimit, $originalFilters);
+
+            return response()->json([
+                'success' => true,
+                'data' => $result,
+                'percentageLimit' => $percentageLimit
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }
