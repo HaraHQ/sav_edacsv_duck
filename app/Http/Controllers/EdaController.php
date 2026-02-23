@@ -324,4 +324,61 @@ class EdaController extends BaseController
             ], 500);
         }
     }
+
+    public function classifyPhases(Request $request)
+    {
+        try {
+            $scriptPath = base_path('classify_phases_cron.php');
+            
+            if (!file_exists($scriptPath)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Classification script not found'
+                ], 404);
+            }
+
+            // Execute in background
+            $command = 'php "' . $scriptPath . '" > NUL 2>&1 &';
+            exec($command);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Phase classification started in background'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function classifyPhasesStatus(Request $request)
+    {
+        try {
+            $logFile = storage_path('logs/phase_classification.log');
+            
+            if (!file_exists($logFile)) {
+                return response()->json([
+                    'success' => true,
+                    'status' => 'No classification runs yet',
+                    'log' => []
+                ]);
+            }
+
+            // Read last 50 lines
+            $lines = file($logFile);
+            $lastLines = array_slice($lines, -50);
+
+            return response()->json([
+                'success' => true,
+                'log' => $lastLines
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }

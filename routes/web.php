@@ -29,6 +29,10 @@ $router->group(['middleware' => 'jwt'], function () use ($router) {
     $router->post('/eda/engine_gas_limit/data', 'EdaController@engineGasLimitData');
     $router->post('/eda/test/files', 'EdaController@testFiles');
     
+    // Flight phase classification
+    $router->post('/eda/classify-phases', 'EdaController@classifyPhases');
+    $router->get('/eda/classify-phases/status', 'EdaController@classifyPhasesStatus');
+    
     // V2 endpoints - AFML-driven approach
     $router->post('/eda/v2/torque_limit/by_afml', 'EdaV2Controller@torqueLimitByAfml');
     $router->post('/eda/v2/engine_rpm_limit/by_afml', 'EdaV2Controller@engineRpmLimitByAfml');
