@@ -311,6 +311,8 @@ function processFile($csvPath, $config, $validTransitions) {
 // Main execution
 logMessage("=== Flight Phase Classification Cron Job Started ===");
 logMessage("EDA Files Path: " . $edaFilesPath);
+logMessage("Running as user: " . get_current_user() . " (UID: " . getmyuid() . ")");
+logMessage("Process owner: " . posix_getpwuid(posix_geteuid())['name']);
 
 $folders = glob($edaFilesPath . '/*', GLOB_ONLYDIR);
 logMessage("Found " . count($folders) . " folders");
