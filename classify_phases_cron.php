@@ -22,7 +22,10 @@ try {
     echo "Warning: Could not load .env file\n";
 }
 
-$edaFilesPath = getenv('EDA_FILES_PATH') ?: 'C:\Users\Rizky\Downloads\EDA_FILES\FILES';
+$edaFilesPath = getenv('EDA_FILES_PATH');
+if (!$edaFilesPath) {
+    $edaFilesPath = $_ENV['EDA_FILES_PATH'] ?? 'C:\Users\Rizky\Downloads\EDA_FILES\FILES';
+}
 $logFile = __DIR__ . '/storage/logs/phase_classification.log';
 
 // Aircraft configurations
@@ -206,14 +209,31 @@ function processFile($csvPath, $config, $validTransitions) {
     $dataTypes = fgets($handle);
     $headerLine = fgets($handle);
     $headers = str_getcsv(trim($headerLine));
+    $headers = array_map('trim', $headers); // Trim all headers
+    
+    logMessage("  Headers found: " . implode(', ', array_slice($headers, 0, 10)) . "...");
     
     // Find column indices
     $colMap = array_flip($headers);
-    $altCol = $colMap['AltGPS'] ?? $colMap['AltB'] ?? $colMap['AltMSL'] ?? null;
+    $altCol = $colMap['AltGPS'] ?? $colMap['AltB'] ?? $colMap['AltMSL'] ?? $colMap['Alt'] ?? $colMap['Altitude'] ?? null;
+    
+    if ($altCol === null) {
+        // Try case-insensitive search for any altitude column
+        foreach ($headers as $idx => $header) {
+            $headerLower = strtolower($header);
+            if (strpos($headerLower, 'alt') === 0) {
+                $altCol = $idx;
+                logMessage("  Found altitude column: " . $header);
+                break;
+            }
+        }
+    } else {
+        logMessage("  Using altitude column: " . $headers[$altCol]);
+    }
     
     if ($altCol === null) {
         fclose($handle);
-        logMessage("ERROR: No altitude column found");
+        logMessage("ERROR: No altitude column found. Available columns: " . implode(', ', $headers));
         return false;
     }
     
@@ -290,27 +310,43 @@ function processFile($csvPath, $config, $validTransitions) {
 
 // Main execution
 logMessage("=== Flight Phase Classification Cron Job Started ===");
+logMessage("EDA Files Path: " . $edaFilesPath);
 
 $folders = glob($edaFilesPath . '/*', GLOB_ONLYDIR);
+logMessage("Found " . count($folders) . " folders");
+
+if (empty($folders)) {
+    logMessage("ERROR: No folders found in EDA_FILES_PATH. Please check the path.");
+    logMessage("Attempted path: " . $edaFilesPath);
+    exit(1);
+}
+
 $processedCount = 0;
 $skippedCount = 0;
 
 foreach ($folders as $folder) {
+    logMessage("Scanning folder: " . basename($folder));
     $csvFiles = glob($folder . '/*.csv');
+    logMessage("  Found " . count($csvFiles) . " CSV files");
     
     foreach ($csvFiles as $csvPath) {
         $fileName = basename($csvPath);
+        logMessage("  Checking: " . $fileName);
         
         // Skip files ending with ______
         if (preg_match('/______\.csv$/', $fileName)) {
+            logMessage("    Skipped: ends with ______");
             continue;
         }
         
         // Check if already has phase column
         if (hasPhaseColumn($csvPath)) {
+            logMessage("    Skipped: already has phase column");
             $skippedCount++;
             continue;
         }
+        
+        logMessage("    Will process this file");
         
         // Determine aircraft type from folder name
         $folderName = basename($folder);
