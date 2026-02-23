@@ -16,7 +16,8 @@ require_once __DIR__ . '/vendor/autoload.php';
 
 // Load environment
 try {
-    (new \Dotenv\Dotenv(__DIR__))->load();
+    $dotenv = \Dotenv\Dotenv::createImmutable(__DIR__);
+    $dotenv->load();
 } catch (\Exception $e) {
     echo "Warning: Could not load .env file\n";
 }
