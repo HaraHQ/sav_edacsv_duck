@@ -254,6 +254,7 @@ class EdaServiceV2
         $totalSeconds = 0;
         $inOverlimit = false;
         $overlimitStartTime = null;
+        $lastTime = null;
         $details = [];
         
         while (($line = fgets($handle)) !== false) {
@@ -269,6 +270,8 @@ class EdaServiceV2
             } catch (\Exception $e) {
                 continue;
             }
+            
+            $lastTime = $currentTime;
             
             if ($torque > $limit && !$inOverlimit) {
                 $inOverlimit = true;
@@ -291,6 +294,22 @@ class EdaServiceV2
                     ];
                 }
             }
+        }
+        
+        // Handle case where overlimit continues until end of file
+        if ($inOverlimit && $overlimitStartTime && $lastTime) {
+            $duration = $lastTime->diffInSeconds($overlimitStartTime);
+            $totalSeconds += $duration;
+            
+            $hours = intval($duration / 3600);
+            $minutes = intval(($duration % 3600) / 60);
+            $seconds = $duration % 60;
+            
+            $details[] = [
+                'start_time' => $overlimitStartTime->format('Y-m-d H:i:s'),
+                'end_time' => $lastTime->format('Y-m-d H:i:s'),
+                'duration' => sprintf('%02d:%02d:%02d', $hours, $minutes, $seconds)
+            ];
         }
         
         fclose($handle);
@@ -477,6 +496,7 @@ class EdaServiceV2
         $totalSeconds = 0;
         $inOverlimit = false;
         $overlimitStartTime = null;
+        $lastTime = null;
         $details = [];
         
         while (($line = fgets($handle)) !== false) {
@@ -492,6 +512,8 @@ class EdaServiceV2
             } catch (\Exception $e) {
                 continue;
             }
+            
+            $lastTime = $currentTime;
             
             if ($value > $limit && !$inOverlimit) {
                 $inOverlimit = true;
@@ -514,6 +536,22 @@ class EdaServiceV2
                     ];
                 }
             }
+        }
+        
+        // Handle case where overlimit continues until end of file
+        if ($inOverlimit && $overlimitStartTime && $lastTime) {
+            $duration = $lastTime->diffInSeconds($overlimitStartTime);
+            $totalSeconds += $duration;
+            
+            $hours = intval($duration / 3600);
+            $minutes = intval(($duration % 3600) / 60);
+            $seconds = $duration % 60;
+            
+            $details[] = [
+                'start_time' => $overlimitStartTime->format('Y-m-d H:i:s'),
+                'end_time' => $lastTime->format('Y-m-d H:i:s'),
+                'duration' => sprintf('%02d:%02d:%02d', $hours, $minutes, $seconds)
+            ];
         }
         
         fclose($handle);

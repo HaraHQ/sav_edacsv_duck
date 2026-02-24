@@ -23,9 +23,9 @@ cd /var/www/eda
 ls -la classify_phases_cron.php
 
 # Make sure PHP has write permissions on CSV files
-sudo chown -R www-data:www-data /path/to/EDA_FILES/FILES
+sudo chown -R www-data:www-data /data/eda_files/FILES
 # OR if running as specific user:
-sudo chown -R your-username:your-username /path/to/EDA_FILES/FILES
+sudo chown -R your-username:your-username /data/eda_files/FILES
 ```
 
 ### 2. Test Manual Execution
