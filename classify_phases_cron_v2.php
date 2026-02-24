@@ -6,18 +6,18 @@
  * Wraps the Python FOQA Flight Phase Classifier v3.0.
  *
  * Mirrors the v1 cron setup:
- *   - Reads EDA_FILES_PATH from .env
- *   - Scans all subfolders for CSV files
- *   - Skips files ending in ______
- *   - Skips files already containing a FLIGHT_PHASE column
- *   - Detects aircraft type from the subfolder name
- *   - Runs the Python classifier and replaces the original file in-place
- *   - Logs to storage/logs/phase_classification.log
+ * - Reads EDA_FILES_PATH from .env
+ * - Scans all subfolders for CSV files
+ * - Skips files ending in ______
+ * - Skips files already containing a FLIGHT_PHASE column
+ * - Detects aircraft type from the subfolder name
+ * - Runs the Python classifier and replaces the original file in-place
+ * - Logs to storage/logs/phase_classification.log
  *
  * Usage: php classify_phases_cron_v2.php
  *
  * Recommended crontab entry (every 5 minutes):
- *   *\/5 * * * * /usr/bin/php /path/to/classify_phases_cron_v2.php >> /dev/null 2>&1
+* *\/5 * * * * /usr/bin/php /path/to/classify_phases_cron_v2.php >> /dev/null 2>&1
  */
 
 require_once __DIR__ . '/vendor/autoload.php';
@@ -26,10 +26,12 @@ require_once __DIR__ . '/vendor/autoload.php';
 //  CONFIGURATION  –  edit paths if needed
 // ─────────────────────────────────────────────────────────────────
 
-define('PYTHON_BIN',   '/usr/bin/python3');
+// Cross-platform Python binary detection
+$isWindows = strtoupper(substr(PHP_OS, 0, 3)) === 'WIN';
+define('PYTHON_BIN',   $isWindows ? 'python' : '/usr/bin/python3');
+
 define('SCRIPT_PATH',  __DIR__ . '/flight_phase_classifier.py');
 define('LOG_FILE',     __DIR__ . '/storage/logs/phase_classification.log');
-define('LOCK_FILE',    '/tmp/foqa_classify_v2.lock');
 define('DEBUG_MODE',   false);   // Set true to pass --debug to the classifier
 
 // ─────────────────────────────────────────────────────────────────
@@ -55,19 +57,47 @@ if (!$edaFilesPath) {
 // ─────────────────────────────────────────────────────────────────
 
 $aircraftConfigs = [
-    'Cessna 208B Grand Caravan EX' => 'Cessna 208B Grand Caravan EX',
-    'Cessna 208B Grand Caravan'    => 'Cessna 208B Grand Caravan',
-    'Cessna 208 Caravan'           => 'Cessna 208 Caravan',
-    'Generic'                      => 'Generic',   // fallback
+    // Cessna 208 Caravan (Standard)
+    'PK-SNK' => 'Cessna 208 Caravan',
+    'PK-SNM' => 'Cessna 208 Caravan',
+    'PK-SNNOF' => 'Cessna 208 Caravan',
+    
+    // Cessna 208B Grand Caravan
+    'PK-SNO' => 'Cessna 208B Grand Caravan',
+    'PK-SNS' => 'Cessna 208B Grand Caravan',
+    
+    // Cessna 208B Grand Caravan EX
+    'PK-SNE' => 'Cessna 208B Grand Caravan EX',
+    'PK-SNA' => 'Cessna 208B Grand Caravan EX',
+    'PK-SNF' => 'Cessna 208B Grand Caravan EX',
+    'PK-SNG' => 'Cessna 208B Grand Caravan EX',
+    'PK-SNH' => 'Cessna 208B Grand Caravan EX',
+    'PK-SNI' => 'Cessna 208B Grand Caravan EX',
+    'PK-SNJ' => 'Cessna 208B Grand Caravan EX',
+    'PK-SNL' => 'Cessna 208B Grand Caravan EX',
+    'PK-SNN' => 'Cessna 208B Grand Caravan EX',
+    'PK-SNP' => 'Cessna 208B Grand Caravan EX',
+    'PK-SNR' => 'Cessna 208B Grand Caravan EX',
+    'PK-SNT' => 'Cessna 208B Grand Caravan EX',
+    'PK-SNV' => 'Cessna 208B Grand Caravan EX',
+    'PK-SNW' => 'Cessna 208B Grand Caravan EX',
+
+    // Fallback
+    'Generic' => 'Generic'
 ];
 
 // ─────────────────────────────────────────────────────────────────
 //  LOCK  –  prevent overlapping cron runs
 // ─────────────────────────────────────────────────────────────────
 
-$lockHandle = fopen(LOCK_FILE, 'c');
+// Cross-platform temporary directory
+$temp_dir = sys_get_temp_dir();
+$lock_file_path = $temp_dir . DIRECTORY_SEPARATOR . 'foqa_classify_v2.lock';
+$lockHandle = fopen($lock_file_path, 'c');
+
+// Check if another instance is running and holds the lock
 if (!$lockHandle || !flock($lockHandle, LOCK_EX | LOCK_NB)) {
-    logMessage("Another instance is already running. Exiting.");
+    echo "[" . date('Y-m-d H:i:s') . "] Another instance is already running. Exiting.\n";
     exit(0);
 }
 
@@ -77,7 +107,8 @@ if (!$lockHandle || !flock($lockHandle, LOCK_EX | LOCK_NB)) {
 
 @mkdir(dirname(LOG_FILE), 0755, true);
 
-if (!is_executable(PYTHON_BIN)) {
+// Skip executable check on Windows, rely on the command execution to fail if python isn't in PATH
+if (!$isWindows && !is_executable(PYTHON_BIN)) {
     logMessage("ERROR: Python binary not found or not executable: " . PYTHON_BIN);
     releaseLock($lockHandle);
     exit(1);
@@ -180,7 +211,7 @@ function processFile(string $csvPath, string $aircraftType): bool
 
     if ($exitCode !== 0) {
         logMessage("    ERROR: Classifier failed (exit $exitCode)");
-        logMessage("    Output: " . substr($outputText, 0, 500));
+        logMessage("    Output: \n" . $outputText);
         @unlink($tempOutput);
         return false;
     }
@@ -206,7 +237,8 @@ function buildCommand(string $input, string $output, string $aircraft): string
     $script = escapeshellarg(SCRIPT_PATH);
     $in     = escapeshellarg($input);
     $out    = escapeshellarg($output);
-    $ac     = escapeshellarg($aircraft);
+    // Use double quotes explicitly for the aircraft string
+    $ac     = '"' . $aircraft . '"'; 
     $debug  = DEBUG_MODE ? ' --debug' : '';
 
     return "$py $script $in $out --aircraft $ac$debug";
@@ -298,10 +330,12 @@ function logMessage(string $message): void
 }
 
 /**
- * Release the exclusive lock.
+ * Release the exclusive lock securely.
  */
 function releaseLock($handle): void
 {
-    flock($handle, LOCK_UN);
-    fclose($handle);
+    if (is_resource($handle)) {
+        flock($handle, LOCK_UN);
+        fclose($handle);
+    }
 }
