@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 ============================================================
- FOQA-Grade Flight Phase Classifier  –  Version 3.0
+ Flight Phase Classifier  –  Version 3.0
  Designed for: Cessna 208 / 208B / 208B EX Turboprop
  Purpose: KPI & Pilot Performance Grading
 ============================================================
@@ -48,55 +48,45 @@ import numpy as np
 from typing import Dict, List, Optional, Tuple
 import argparse
 
-# ── Force UTF-8 stdout on Windows (cp1252 can't encode box-drawing chars).
-# sys.stdout.reconfigure() requires Python 3.7+ and a real TextIOWrapper.
 try:
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 except AttributeError:
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer,
                                    encoding='utf-8', errors='replace')
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  AIRCRAFT CONFIGURATION
-#  V3 ADDITION: Hysteresis thresholds appended to every config block.
-#               Enter threshold is STRICTER than exit threshold.
-#               The gap between them is the hysteresis dead-band.
-# ─────────────────────────────────────────────────────────────────────────────
+#Aircraft Config
 
 AIRCRAFT_CONFIGS: Dict[str, Dict] = {
     "Cessna 208 Caravan": {
-        # ── V2: Rotation / climb (unchanged) ──────────────────────────────
         "rotation_ias"          : 58.0,
         "climb_torque_min"      : 1200.0,
         "climb_rate_threshold"  : 400.0,    # static fallback; adaptive overrides
-        # ── V2: Ground ops ────────────────────────────────────────────────
+        # Ground
         "taxi_speed_threshold"  : 6.0,
         "definitely_airborne_ias": 55.0,
         "liftoff_agl"           : 30.0,     # static fallback
-        # ── V2: Landing ───────────────────────────────────────────────────
+        # Landing
         "flare_agl"             : 50.0,
         "touchdown_agl"         : 15.0,
-        # ── V2: Engine / power ────────────────────────────────────────────
+        # Engine
         "idle_ng_max"           : 68.0,
         "idle_fflow_max"        : 80.0,
         "takeoff_torque_min"    : 1100.0,
-        # ── V2: Cruise band ───────────────────────────────────────────────
+        # Cruise
         "cruise_fflow_min"      : 120.0,
         "cruise_fflow_max"      : 350.0,
         "steep_turn_bank"       : 45.0,
         "hard_landing_g"        : 1.8,
         "high_wind_landing_kts" : 15.0,
         "cruise_agl_min"        : 1000.0,   # static fallback
-        # ── V3: Hysteresis – CLIMB ────────────────────────────────────────
-        # Must exceed climb_rate_enter to START climb phase.
-        # Phase is not exited until VSpd drops below climb_rate_exit.
-        # Dead-band: 100 fpm prevents flicker at the threshold boundary.
+        # climb
+        # Must exceed climb_rate_enter to START climb phase. Phase is not exited until VSpd drops below climb_rate_exit.
         "climb_rate_enter"      : 450.0,    # fpm – stricter than static threshold
         "climb_rate_exit"       : 300.0,    # fpm – looser than enter
-        # ── V3: Hysteresis – DESCENT ─────────────────────────────────────
+        # Descent
         "descent_rate_enter"    : 450.0,    # fpm downward to START descent
         "descent_rate_exit"     : 250.0,    # fpm – looser exit
-        # ── V3: Hysteresis – AIRBORNE ────────────────────────────────────
+        # Agl airborne
         # liftoff_agl_enter: AGL must exceed this to consider airborne.
         # liftoff_agl_exit:  AGL must drop below this to return to ground.
         # This gap (20 ft) prevents oscillation on a flat runway.
@@ -180,25 +170,18 @@ AIRCRAFT_CONFIGS: Dict[str, Dict] = {
     },
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  V3: EVENT PERSISTENCE DURATIONS
-#  How many consecutive rows an event condition must hold before it is
-#  confirmed as a real event (not a sensor spike).
-#  Minimum durations are conservative — a real go-around takes >3 seconds.
-# ─────────────────────────────────────────────────────────────────────────────
+# Event persistence duration > 3 to consider real
 
 EVENT_PERSISTENCE: Dict[str, int] = {
-    'GO_AROUND'          : 3,   # seconds – rapid power + climb recovery
-    'REJECTED_TAKEOFF'   : 3,   # seconds – must be decelerating consistently
-    'UNSTABLE_APPROACH'  : 5,   # seconds – brief speed deviation ≠ unstable
+    'GO_AROUND'          : 3,   # rapid power + climb recovery
+    'REJECTED_TAKEOFF'   : 3,   # must be decelerating consistently
+    'UNSTABLE_APPROACH'  : 5,   # brief speed deviation ≠ unstable
     'UNSTABLE_DEPARTURE' : 5,
     'UNSTABLE_CIRCUIT'   : 4,
     'HARD_LANDING'       : 2,   # g-spike – brief but real; 2 rows minimum
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  STATE-MACHINE TRANSITION TABLE  (unchanged from v2)
-# ─────────────────────────────────────────────────────────────────────────────
+# Transition state
 
 VALID_TRANSITIONS: Dict[str, List[str]] = {
     "GROUND"           : ["GROUND", "TAXI", "TAKEOFF ROLL"],
@@ -230,17 +213,9 @@ VALID_TRANSITIONS: Dict[str, List[str]] = {
                           "LEVEL FLIGHT"],
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  HELPER: SAFE NUMERIC CONVERSION  (unchanged from v2)
-# ─────────────────────────────────────────────────────────────────────────────
-
 def safe_num(series: pd.Series, fill: float = 0.0) -> pd.Series:
     return pd.to_numeric(series, errors='coerce').fillna(fill)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  V3 UTILITY: TEMPORAL PERSISTENCE FILTER
-# ─────────────────────────────────────────────────────────────────────────────
 
 def require_persistence(mask: pd.Series, min_duration: int) -> pd.Series:
     """
@@ -308,9 +283,8 @@ def require_persistence(mask: pd.Series, min_duration: int) -> pd.Series:
 
 class FOQAFlightClassifier:
     """
-    FOQA-grade flight phase and event classifier for turboprop aircraft.
 
-    Key architectural decisions (v2, all preserved)
+    Key architectural decisions
     ------------------------------------------------
     * Multi-witness rule: at minimum 2 independent parameters must agree.
     * Energy-state vector: torque + IAS + VSpd normalised to 0–1.
@@ -318,7 +292,7 @@ class FOQAFlightClassifier:
     * GPS quality gate: degraded GPS reduces confidence but does not halt.
     * Separate event column: FLIGHT_EVENT never overwrites FLIGHT_PHASE.
 
-    V3 additions (all additive, none replacing)
+    V3 additions
     -------------------------------------------
     * Hysteresis state tracked per-flight in classify() loop.
     * Adaptive thresholds computed once per flight from percentiles.
@@ -331,8 +305,6 @@ class FOQAFlightClassifier:
 
     SMOOTHING_MIN_DURATION = 4
 
-    # Minimum data rows needed to compute adaptive thresholds.
-    # Below this, static config values are used as-is.
     ADAPTIVE_MIN_ROWS = 100
 
     def __init__(self, aircraft_type: str = "Generic", debug_mode: bool = False):
@@ -349,18 +321,12 @@ class FOQAFlightClassifier:
             'cruise_agl'   : self.cfg['cruise_agl_min'],
         }
 
-    # ── 1. DERIVED PARAMETERS  (v2 logic preserved; Energy_State_deriv added)
+    # ── 1. DERIVED PARAMETERS  
 
     def compute_derived(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Compute all derived columns needed for classification.
-
-        V2 columns (all preserved, no changes):
-            IAS_deriv, VSpd_deriv, GndSpd_deriv, Alt_deriv, Torq_deriv,
-            Alt_stability, VSpd_stability, TAS_IAS_diff, Hdg_Trk_diff,
-            CrosswindComp, HeadwindComp, Energy_State,
-            NormAc_peak, LatAc_abs, GPS_quality, fflow_idle, ng_high
-
+        
         V3 addition:
             Energy_State_deriv – rate of change of Energy_State.
                                   Positive = energy building (climb entry).
@@ -370,7 +336,7 @@ class FOQAFlightClassifier:
                                   DESCENDING FLIGHT, CRUISE vs LEVEL FLIGHT.
         """
         df = df.copy()
-        window = 5   # 1-Hz data assumption
+        window = 5   # 1-Hz data assumption PLEASE CHANGE IF NEEDED !!!
 
         def deriv(col):
             return df[col].diff().rolling(window=window, center=True,
@@ -389,19 +355,19 @@ class FOQAFlightClassifier:
         df['VSpd_stability'] = df['VSpd'].rolling(window=10, center=True,
                                                     min_periods=3).std().fillna(999)
 
-        # ── V2: Density-altitude proxy (unchanged)
+        # ── V2: Density-altitude proxy
         df['TAS_IAS_diff']  = df['TAS'] - df['IAS']
 
-        # ── V2: Crab angle (unchanged)
+        # ── V2: Crab angle
         raw_diff = df['HDG'] - df['TRK']
         df['Hdg_Trk_diff']  = ((raw_diff + 180) % 360) - 180
 
-        # ── V2: Wind components (unchanged)
+        # ── V2: Wind components
         rel_wind            = np.radians(df['WndDr'] - df['HDG'])
         df['CrosswindComp'] = (df['WndSpd'] * np.sin(rel_wind)).abs()
         df['HeadwindComp']  =  df['WndSpd'] * np.cos(rel_wind)
 
-        # ── V2: Energy state (unchanged formula)
+        # ── V2: Energy state
         max_torque  = self.cfg['climb_torque_min'] * 1.2
         max_ias     = 175.0
         max_vspd    = 1500.0
@@ -411,15 +377,14 @@ class FOQAFlightClassifier:
         df['Energy_State'] = (0.5 * E_torque + 0.3 * E_ias + 0.2 * E_vspd).clip(0, 1)
 
         # ── V3: Energy state derivative  (rate of energy change)
-        # Smoothed over 5 rows to suppress sensor noise.
         # Positive = energy building. Negative = energy dissipating.
         df['Energy_State_deriv'] = df['Energy_State'].diff().rolling(
             window=window, center=True, min_periods=1).mean()
 
-        # ── V2: Landing impact (unchanged)
+        # ── V2: Landing impact
         df['NormAc_peak'] = df['NormAc'].rolling(window=3, center=True,
                                                    min_periods=1).max()
-        # ── V2: Lateral acceleration (unchanged)
+        # ── V2: Lateral acceleration
         df['LatAc_abs']   = df['LatAc'].abs()
 
         # ── GPS quality gate (robust to absent/zero-filled columns)
@@ -454,19 +419,19 @@ class FOQAFlightClassifier:
 
         df['GPS_quality'] = gps_quality_mask.astype(int)
 
-        # ── V2: Engine state flags (unchanged)
+        # ── V2: Engine state flags 
         df['fflow_idle']  = (df['E1 FFlow'] < self.cfg['idle_fflow_max']).astype(int)
         df['ng_high']     = (df['E1 NG']    > self.cfg['idle_ng_max']).astype(int)
 
         return df
 
-    # ── 2. AGL COMPUTATION  (V3: true gradient replaces flat step model)
+    # ── 2. AGL COMPUTATION 
 
     def compute_agl(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Dynamic ground elevation reference – robust to sloped runways.
 
-        V2 strategy (preserved):
+        V2 strategy:
         * Best altitude source: GPS → Baro → MSL.
         * Departure elevation = median of 10 lowest GPS altitudes while GndSpd < 40.
         * Destination elevation = same, from last 3 minutes.
@@ -618,11 +583,6 @@ class FOQAFlightClassifier:
             desc_dyn = self.cfg['climb_rate_threshold']
 
         # ── Cruise AGL: 80th percentile of LEVEL flight AGL
-        #
-        # Using 60th pct of all airborne rows was wrong: it included climb and
-        # approach rows, inflating the threshold to 6,000-13,000 ft and causing
-        # CruiseAlt to fail on every actual cruise row.
-        #
         # Fix: filter to rows where VSpd is near-level (|VSpd| < 300 fpm) AND
         # IAS > 50 kts.  This isolates genuine level/cruise flight.  The 80th
         # percentile is used (not 60th) because we want the threshold to sit
@@ -632,7 +592,7 @@ class FOQAFlightClassifier:
         agl_samples  = df.loc[level_mask, 'AGL']
         if len(agl_samples) >= MIN_ROWS:
             cruise_agl_dyn = float(np.percentile(agl_samples, 80))
-            # Clamp: must be at least 50% of static minimum, at most 3x
+            # Clamp: must be at least 50% of static minimum, at most 15x karna pegunungan bisa memiliki elevasi yang tinggi
             cruise_agl_dyn = np.clip(cruise_agl_dyn,
                                      self.cfg['cruise_agl_min'] * 0.5,
                                      self.cfg['cruise_agl_min'] * 15.0)
@@ -655,13 +615,13 @@ class FOQAFlightClassifier:
             print(f"  [DYN] cruise_agl   = {cruise_agl_dyn:.1f} ft "
                   f"(static: {self.cfg['cruise_agl_min']:.1f})")
 
-    # ── 3. SPECIAL EVENT DETECTION  (v2 logic; persistence filter added)
+    # ── 3. SPECIAL EVENT DETECTION
 
     def detect_special_events(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Scan flight data BEFORE phase classification and mark events.
 
-        V2 events (all preserved):
+        V2 events:
             HARD_LANDING, GO_AROUND, REJECTED_TAKEOFF,
             UNSTABLE_APPROACH, UNSTABLE_DEPARTURE, UNSTABLE_CIRCUIT,
             STEEP_TURN, ENGINE_IDLE_DESCENT, HIGH_WIND_LANDING
@@ -673,7 +633,7 @@ class FOQAFlightClassifier:
         """
         events = pd.Series(['NORMAL'] * len(df), index=df.index)
 
-        # ── HARD LANDING (v2 logic unchanged)
+        # ── HARD LANDING
         hard_land_raw = (
             (df['NormAc_peak'] >= self.cfg['hard_landing_g']) &
             (df['AGL'] < 30) &
@@ -684,7 +644,7 @@ class FOQAFlightClassifier:
                                               EVENT_PERSISTENCE['HARD_LANDING'])
         events[hard_land_mask] = _append_event(events[hard_land_mask], 'HARD_LANDING')
 
-        # ── GO-AROUND (v2 logic unchanged)
+        # ── GO-AROUND
         go_around_raw = (
             (df['AGL'] < 300) &
             (df['Torq_deriv'] > 200) &
@@ -695,7 +655,7 @@ class FOQAFlightClassifier:
                                               EVENT_PERSISTENCE['GO_AROUND'])
         events[go_around_mask] = _append_event(events[go_around_mask], 'GO_AROUND')
 
-        # ── REJECTED TAKEOFF (v2 logic unchanged)
+        # ── REJECTED TAKEOFF
         rto_raw = (
             (df['GndSpd'] > 40) &
             (df['Torq_deriv'] < -200) &
@@ -705,7 +665,7 @@ class FOQAFlightClassifier:
         rto_mask = require_persistence(rto_raw, EVENT_PERSISTENCE['REJECTED_TAKEOFF'])
         events[rto_mask] = _append_event(events[rto_mask], 'REJECTED_TAKEOFF')
 
-        # ── INSTABILITY EVENTS — context-separated (v2 logic unchanged)
+        # ── INSTABILITY EVENTS — context-separated
         peak_pos     = int(df['AGL'].argmax())
         is_dep_side  = pd.Series(False, index=df.index)
         is_arr_side  = pd.Series(False, index=df.index)
@@ -764,7 +724,7 @@ class FOQAFlightClassifier:
         uc_mask = require_persistence(uc_raw, EVENT_PERSISTENCE['UNSTABLE_CIRCUIT'])
         events[uc_mask] = _append_event(events[uc_mask], 'UNSTABLE_CIRCUIT')
 
-        # ── STEEP TURN (v2 unchanged — no persistence: brief steep turns count)
+        # ── STEEP TURN 
         steep_mask = (df['Roll'].abs() > self.cfg['steep_turn_bank']) & (df['AGL'] > 200)
         events[steep_mask] = _append_event(events[steep_mask], 'STEEP_TURN')
 
@@ -776,7 +736,7 @@ class FOQAFlightClassifier:
         events[idle_desc_rolling >= 30] = _append_event(
             events[idle_desc_rolling >= 30], 'ENGINE_IDLE_DESCENT')
 
-        # ── HIGH WIND LANDING (v2 unchanged)
+        # ── HIGH WIND LANDING 
         hw_mask = (
             (df['CrosswindComp'] > self.cfg['high_wind_landing_kts']) &
             (df['AGL'] < 500) & (df['GndSpd'] > 20)
@@ -802,15 +762,7 @@ class FOQAFlightClassifier:
         """
         Classify a single row using plain scalar arguments.
 
-        CONFIDENCE FIX — Branch-local snapshot scoring
-        -----------------------------------------------
-        The original implementation used a single global witness accumulator
-        across all layers.  Every rejected layer (GO-AROUND fails, ROTATION
-        fails, APPROACH fails…) added to witnesses_possible without adding
-        to witnesses_hit, collapsing cruise confidence to ~0.26 even on a
-        perfect, stable cruise row.
-
-        Fix: the W() closure records ALL checks globally for the reason string,
+        the W() closure records ALL checks globally for the reason string,
         but confidence is computed from a SNAPSHOT taken immediately before
         each phase's specific witness checks.  Only the delta
         (hit_since_snap / possible_since_snap) is used as the confidence base.
@@ -1010,11 +962,6 @@ class FOQAFlightClassifier:
         # ── CRUISE / LEVEL FLIGHT
         # Scoring witnesses: LevelVSpd, AltStable, CruiseAlt (3 core witnesses)
         # AFCS is a BONUS confidence boost, not a scoring witness.
-        # Rationale: hand-flying is normal procedure; penalising pilots who
-        # don't use autopilot by capping cruise confidence at 3/4 = 0.75 is
-        # operationally incorrect.  AFCS engagement is evidence OF cruise, not
-        # a requirement for it.  It boosts confidence from 1.0 → 1.0 (already
-        # at max when all 3 core fire) or adds a partial boost otherwise.
         # The threshold remains 2 of 3 core witnesses (same strictness as before).
         afcs_on      = (afcs == 1)   # plain bool — bonus, not a W() call
         s = snap()
@@ -1163,7 +1110,7 @@ class FOQAFlightClassifier:
         df['PHASE_STABILITY'] = result
         return df
 
-    # ── 8. MAIN PIPELINE  (V3: adds adaptive thresholds, new columns, debug)
+    # ── 8. MAIN PIPELINE 
 
     def classify(self, df: pd.DataFrame) -> pd.DataFrame:
         """
@@ -1275,7 +1222,6 @@ class FOQAFlightClassifier:
                     else:
                         validated = current_phase
 
-            # ── V3: Update hysteresis state based on validated phase and sensors
             # Airborne hysteresis: enter when AGL > enter threshold, exit when < exit
             if a_agl[i] > cfg['liftoff_agl_enter']:
                 in_airborne_hyst = True
@@ -1377,10 +1323,7 @@ def _reason(phase: str, tags: List[str]) -> str:
     result  = f"{phase} | {tag_str}"
     return result[:120]
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  UTILITY  (unchanged from v2)
-# ─────────────────────────────────────────────────────────────────────────────
+#  UTILITY 
 
 def _append_event(series: pd.Series, event: str) -> pd.Series:
     def _add(val):
@@ -1404,10 +1347,7 @@ def ensure_columns(df: pd.DataFrame) -> pd.DataFrame:
             df[col] = 0.0
     return df
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  FILE I/O  (updated to write 3 new columns)
-# ─────────────────────────────────────────────────────────────────────────────
+# Write the Columns
 
 def process_flight_log(input_file: str,
                        output_file: str,
@@ -1496,12 +1436,7 @@ def process_flight_log(input_file: str,
                     f"\"{row['PHASE_REASON']}\","   # quoted: contains commas
                     f"{row['PHASE_STABILITY']}\n")
 
-    print(f"\nOK Done.\n")
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  CLI
-# ─────────────────────────────────────────────────────────────────────────────
+    print(f"\nDone.\n")
 
 def main():
     parser = argparse.ArgumentParser(
