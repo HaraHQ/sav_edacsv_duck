@@ -635,7 +635,7 @@ class FOQAFlightClassifier:
             # Clamp: must be at least 50% of static minimum, at most 3x
             cruise_agl_dyn = np.clip(cruise_agl_dyn,
                                      self.cfg['cruise_agl_min'] * 0.5,
-                                     self.cfg['cruise_agl_min'] * 3.0)
+                                     self.cfg['cruise_agl_min'] * 15.0)
         else:
             cruise_agl_dyn = self.cfg['cruise_agl_min']
 
