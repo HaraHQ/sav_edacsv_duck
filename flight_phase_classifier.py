@@ -117,6 +117,15 @@ AIRCRAFT_CONFIGS: Dict[str, Dict] = {
         "descent_rate_exit"     : 250.0,
         "liftoff_agl_enter"     : 40.0,
         "liftoff_agl_exit"      : 20.0,
+        "vmo_kias"              : 175.0,
+        "vref_approach"         : 85.0,
+        "hard_landing_g_critical": 2.1,
+        "low_airspeed_warn"     : 78.0,
+        "low_airspeed_critical" : 68.0,
+        "itt_warn"              : 740.0,
+        "itt_limit"             : 800.0,
+        "rapid_power_warn"      : 200.0,
+        "rapid_power_critical"  : 400.0,
     },
     "Cessna 208B Grand Caravan EX": {
         "rotation_ias"          : 60.0,
@@ -142,6 +151,15 @@ AIRCRAFT_CONFIGS: Dict[str, Dict] = {
         "descent_rate_exit"     : 280.0,
         "liftoff_agl_enter"     : 40.0,
         "liftoff_agl_exit"      : 20.0,
+        "vmo_kias"              : 175.0,
+        "vref_approach"         : 88.0,
+        "hard_landing_g_critical": 2.1,
+        "low_airspeed_warn"     : 80.0,
+        "low_airspeed_critical" : 70.0,
+        "itt_warn"              : 750.0,    # PT6A-140A — verify against AMM
+        "itt_limit"             : 810.0,
+        "rapid_power_warn"      : 200.0,
+        "rapid_power_critical"  : 400.0,
     },
     "Generic": {
         "rotation_ias"          : 60.0,
@@ -167,6 +185,15 @@ AIRCRAFT_CONFIGS: Dict[str, Dict] = {
         "descent_rate_exit"     : 200.0,
         "liftoff_agl_enter"     : 35.0,
         "liftoff_agl_exit"      : 15.0,
+        "vmo_kias"              : 175.0,
+        "vref_approach"         : 85.0,
+        "hard_landing_g_critical": 2.1,
+        "low_airspeed_warn"     : 75.0,
+        "low_airspeed_critical" : 65.0,
+        "itt_warn"              : 740.0,
+        "itt_limit"             : 800.0,
+        "rapid_power_warn"      : 200.0,
+        "rapid_power_critical"  : 400.0,
     },
 }
 
@@ -222,59 +249,45 @@ def require_persistence(mask: pd.Series, min_duration: int) -> pd.Series:
     Return a boolean Series where True is only set where the condition in
     `mask` has been continuously True for at least `min_duration` rows.
 
-    Design rationale
-    ----------------
-    A single-row sensor spike (e.g. a 2g NormAc transient from a pothole on
-    the taxiway) should not trigger HARD_LANDING.  A genuine hard landing
-    event will hold the g-load above threshold for multiple consecutive rows.
+    Implementation operates entirely on numpy arrays so it is immune to
+    duplicate, non-contiguous, or non-monotonic pandas index labels —
+    the root cause of the "cannot reindex on an axis with duplicate labels"
+    error seen with G1000 CSVs that contain duplicate Lcl Time entries.
 
-    Implementation uses a rolling sum window of size `min_duration`.
-    If the sum equals `min_duration`, all rows in that window satisfied the
-    condition continuously — so the LAST row of the window is confirmed.
-    We then back-fill the confirmed True value to the window START using
-    a backward rolling max, so the entire run is marked True, not just
-    the final row.
-
-    Complexity: O(n) — two vectorised rolling operations.
-
-    Parameters
-    ----------
-    mask         : boolean Series of raw event condition
-    min_duration : minimum consecutive True rows required
-
-    Returns
-    -------
-    confirmed : boolean Series — True only where persistence is met
+    The original index is preserved on the returned Series.
     """
     if min_duration <= 1:
         return mask.copy()
 
-    int_mask = mask.astype(int)
+    original_index = mask.index
+    arr = mask.to_numpy(dtype=bool)
+    n   = len(arr)
 
-    # Step 1: right-aligned rolling sum marks the END of each valid run.
-    # rolling_sum[i] == min_duration ⟺ rows [i-min_duration+1 … i] were all True.
-    rolling_sum   = int_mask.rolling(window=min_duration,
-                                      min_periods=min_duration).sum()
-    confirmed_end = (rolling_sum >= min_duration)
+    if n == 0:
+        return mask.copy()
 
-    # Step 2: back-propagate from the confirmed END to the run START.
-    # We need a FORWARD-looking rolling max (looks ahead), which pandas does
-    # not have natively.  Equivalent: reverse the series, apply a normal
-    # right-aligned rolling max (now looking backward in reversed order =
-    # looking forward in original order), then reverse back.
-    #
-    # Example with min_duration=3 and mask=[F,T,T,T,F,T,T,F]:
-    #   confirmed_end         = [F,F,F,T,F,F,F,F]
-    #   reversed              = [F,F,F,F,T,F,F,F]  (old index 7→0)
-    #   rolling max (rev, w=3)= [F,F,F,F,T,T,T,F]
-    #   reversed back         = [F,T,T,T,F,F,F,F]  ← correct result
-    rev_max   = (confirmed_end.iloc[::-1]
-                              .rolling(window=min_duration, min_periods=1)
-                              .max()
-                              .iloc[::-1])
-    confirmed = rev_max.astype(bool)
-    confirmed.index = mask.index   # restore original index alignment
-    return confirmed
+    # ── Step 1: build run-length confirmed array using numpy only ────────────
+    # For each position i, compute how many consecutive True values end at i.
+    # If that count >= min_duration, the end of a qualifying run is confirmed.
+    run_len = np.zeros(n, dtype=int)
+    for i in range(n):
+        if arr[i]:
+            run_len[i] = run_len[i - 1] + 1 if i > 0 else 1
+        else:
+            run_len[i] = 0
+
+    confirmed_end = run_len >= min_duration   # bool array
+
+    # ── Step 2: back-propagate the confirmed end flag to the run start ───────
+    # For every confirmed end position, mark the preceding (min_duration-1)
+    # positions True as well, so the entire qualifying run is labelled.
+    confirmed = np.zeros(n, dtype=bool)
+    for i in range(n):
+        if confirmed_end[i]:
+            start = max(0, i - min_duration + 1)
+            confirmed[start : i + 1] = True
+
+    return pd.Series(confirmed, index=original_index)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -320,6 +333,7 @@ class FOQAFlightClassifier:
             'descent_rate' : self.cfg['climb_rate_threshold'],   # same default
             'cruise_agl'   : self.cfg['cruise_agl_min'],
         }
+        self._normac_offset: float = 1.0   # updated by compute_derived()
 
     # ── 1. DERIVED PARAMETERS  
 
@@ -387,20 +401,6 @@ class FOQAFlightClassifier:
         # ── V2: Lateral acceleration
         df['LatAc_abs']   = df['LatAc'].abs()
 
-        # ── GPS quality gate (robust to absent/zero-filled columns)
-        #
-        # G1000 logs from older firmware versions don't record GPSfix, HAL, or
-        # VAL. ensure_columns() fills them with 0.0, which makes every row look
-        # like a degraded GPS fix (GPSfix=0 < 3) and applies a -0.15 confidence
-        # penalty to every row in the flight -- corrupting confidence for the
-        # entire log.
-        #
-        # Fix: only use a quality sub-check if the column has real logged values.
-        #   GPSfix is real if any row has a value >= 1 (a valid fix code).
-        #   HAL    is real if any row has a value > 0.001 nm (non-trivial radius).
-        #   VAL    is real if any row has a value > 0.1 ft  (non-trivial error).
-        # If a column is all-zero (not logged), skip it -- don't penalise.
-        # If NO quality columns are logged, default to GPS_quality = 1 (good).
         gpsFix_col  = pd.to_numeric(df['GPSfix'], errors='coerce').fillna(0)
         hal_col     = pd.to_numeric(df['HAL'],    errors='coerce').fillna(0)
         val_col     = pd.to_numeric(df['VAL'],    errors='coerce').fillna(0)
@@ -524,41 +524,6 @@ class FOQAFlightClassifier:
     # ── V3 NEW: ADAPTIVE THRESHOLD COMPUTATION ───────────────────────────────
 
     def compute_adaptive_thresholds(self, df: pd.DataFrame) -> None:
-        """
-        Compute per-flight adaptive thresholds from data percentiles.
-
-        Rationale
-        ---------
-        Static thresholds assume average conditions.  A flight at high density
-        altitude (DA) will have lower climb rates than sea-level operations.
-        A heavy-cargo 208B will climb more slowly than an empty one.
-
-        By calibrating to the actual VSpd distribution of each flight,
-        the classifier automatically adjusts for:
-        - DA effects on climb performance
-        - Weight and CG variations
-        - Engine condition trends over time
-
-        Thresholds computed
-        -------------------
-        climb_rate    = 75th percentile of positive VSpd values.
-                        This is the "normal climb" rate for this flight.
-                        Only positive VSpd rows are included to exclude
-                        descent and level flight from the sample.
-
-        descent_rate  = 75th percentile of absolute negative VSpd values.
-                        Same logic inverted for descent.
-
-        cruise_agl    = 60th percentile of AGL during airborne rows
-                        (IAS > 50 kts).  This captures the typical cruise
-                        altitude band for this specific route.
-
-        Fallback: if fewer than ADAPTIVE_MIN_ROWS are available for any
-        computation, the static config value is used.
-
-        Stored in: self._dyn  (read by _classify_row via scalar copies)
-                   df.attrs['dynamic_thresholds']  (for external inspection)
-        """
         MIN_ROWS = self.ADAPTIVE_MIN_ROWS
 
         # ── Climb rate: 75th pct of upward VSpd
@@ -651,9 +616,8 @@ class FOQAFlightClassifier:
             (df['VSpd_deriv'] > 50) &
             (df['VSpd'] > -200)
         )
-        go_around_mask = require_persistence(go_around_raw,
-                                              EVENT_PERSISTENCE['GO_AROUND'])
-        events[go_around_mask] = _append_event(events[go_around_mask], 'GO_AROUND')
+        ga_s1 = require_persistence(ga_raw, 3)
+        events[ga_s1] = _append_event(events[ga_s1], 'GO_AROUND_S1')
 
         # ── REJECTED TAKEOFF
         rto_raw = (
@@ -662,8 +626,8 @@ class FOQAFlightClassifier:
             (df['GndSpd_deriv'] < -1.0) &
             (df['AGL'] < 30)
         )
-        rto_mask = require_persistence(rto_raw, EVENT_PERSISTENCE['REJECTED_TAKEOFF'])
-        events[rto_mask] = _append_event(events[rto_mask], 'REJECTED_TAKEOFF')
+        rto_s2 = require_persistence(rto_raw, 3)
+        events[rto_s2] = _append_event(events[rto_s2], 'REJECTED_TAKEOFF_S2')
 
         # ── INSTABILITY EVENTS — context-separated
         peak_pos     = int(df['AGL'].argmax())
@@ -700,29 +664,35 @@ class FOQAFlightClassifier:
         events[ua_mask] = _append_event(events[ua_mask], 'UNSTABLE_APPROACH')
 
         ud_score = (
-            (dep_ias_low | dep_ias_high).astype(int) +
-            dep_vs_low.astype(int) +
-            dep_bank_excess.astype(int) +
-            dep_pwr_low.astype(int)
+            ((df['IAS'] < cfg['rotation_ias'] - 5) |
+             (df['IAS'] > cfg['rotation_ias'] + 30)).astype(int) +
+            (df['VSpd'] < cfg['climb_rate_threshold'] * 0.5).astype(int) +
+            (df['Roll'].abs() > 20).astype(int) +
+            (df['E1 Torq'] < cfg['climb_torque_min'] * 0.7).astype(int)
         )
         ud_raw = (
             is_dep_side & (df['AGL'] < 1500) & (df['AGL'] > 30) &
             (df['VSpd'] > -200) & (ud_score >= 2)
         )
-        ud_mask = require_persistence(ud_raw, EVENT_PERSISTENCE['UNSTABLE_DEPARTURE'])
-        events[ud_mask] = _append_event(events[ud_mask], 'UNSTABLE_DEPARTURE')
+        ud_s1 = require_persistence(ud_raw, 5)
+        events[ud_s1] = _append_event(events[ud_s1], 'UNSTABLE_DEPARTURE_S1')
 
-        uc_speed_bad = (df['IAS'] < (vref_proxy - 15)) | (df['IAS'] > (vref_proxy + 25))
-        uc_vs_bad    = (df['VSpd'] < -1500) | (df['VSpd'] > 1500)
-        uc_bank_bad  = df['Roll'].abs() > 30
-        uc_score     = (uc_speed_bad.astype(int) + uc_vs_bad.astype(int) +
-                        uc_bank_bad.astype(int))
+        # ─────────────────────────────────────────────────────────────────────
+        # 15. UNSTABLE CIRCUIT  (S1)
+        #    Speed / bank / VS instability in circuit band (200–1500 AGL),
+        #    excluding rows already tagged as unstable approach or departure.
+        # ─────────────────────────────────────────────────────────────────────
+        uc_score = (
+            ((df['IAS'] < vref_proxy - 15) | (df['IAS'] > vref_proxy + 25)).astype(int) +
+            ((df['VSpd'] < -1500) | (df['VSpd'] > 1500)).astype(int) +
+            (df['Roll'].abs() > 30).astype(int)
+        )
         uc_raw = (
             (df['AGL'] >= 200) & (df['AGL'] <= 1500) &
-            (~ua_mask) & (~ud_mask) & (uc_score >= 2)
+            ~ua_s2 & ~ud_s1 & (uc_score >= 2)
         )
-        uc_mask = require_persistence(uc_raw, EVENT_PERSISTENCE['UNSTABLE_CIRCUIT'])
-        events[uc_mask] = _append_event(events[uc_mask], 'UNSTABLE_CIRCUIT')
+        uc_s1 = require_persistence(uc_raw, 4)
+        events[uc_s1] = _append_event(events[uc_s1], 'UNSTABLE_CIRCUIT_S1')
 
         # ── STEEP TURN 
         steep_mask = (df['Roll'].abs() > self.cfg['steep_turn_bank']) & (df['AGL'] > 200)
@@ -734,17 +704,110 @@ class FOQAFlightClassifier:
         )
         idle_desc_rolling = idle_desc_raw.rolling(window=30, min_periods=30).sum()
         events[idle_desc_rolling >= 30] = _append_event(
-            events[idle_desc_rolling >= 30], 'ENGINE_IDLE_DESCENT')
+            events[idle_desc_rolling >= 30], 'ENGINE_IDLE_DESCENT_S1')
 
         # ── HIGH WIND LANDING 
         hw_mask = (
             (df['CrosswindComp'] > self.cfg['high_wind_landing_kts']) &
             (df['AGL'] < 500) & (df['GndSpd'] > 20)
         )
-        events[hw_mask] = _append_event(events[hw_mask], 'HIGH_WIND_LANDING')
+        hw_s1 = require_persistence(hw_raw, 1)
+        events[hw_s1] = _append_event(events[hw_s1], 'HIGH_WIND_LANDING_S1')
 
         df['FLIGHT_EVENT'] = events
         return df
+
+    def extract_event_windows(self, df):
+        """
+        Collapse contiguous FLIGHT_EVENT rows into discrete event window records.
+
+        FIXED: Uses string-matching instead of `.explode()` to prevent Index duplication errors.
+
+        Each returned dict contains:
+            event       base event name WITHOUT severity suffix (e.g. 'HARD_LANDING')
+            severity    integer 1 / 2 / 3  (parsed from _S{n} suffix)
+            label       full label as stored in FLIGHT_EVENT (e.g. 'HARD_LANDING_S3')
+            start_row   first DataFrame index of the window
+            end_row     last DataFrame index of the window
+            duration_sec  number of rows (1-Hz assumption)
+            peak_value  type-appropriate peak (g for landing, fpm for descent, etc.)
+        """
+        events = []
+
+        if 'FLIGHT_EVENT' not in df.columns:
+            return events
+
+        # Collect unique event labels present in the DataFrame
+        unique_labels = set()
+        for val in df['FLIGHT_EVENT'].dropna().unique():
+            if val != 'NORMAL':
+                unique_labels.update(str(val).split('|'))
+
+        for label in sorted(unique_labels):
+            # ── Parse base name and severity from label (e.g. 'HARD_LANDING_S3')
+            import re as _re
+            sev_match = _re.search(r'_S([123])$', label)
+            if sev_match:
+                severity  = int(sev_match.group(1))
+                base_name = label[:sev_match.start()]
+            else:
+                # Legacy label without suffix — treat as S1
+                severity  = 1
+                base_name = label
+
+            # Boolean mask for this specific label WITHOUT exploding the index
+            mask = df['FLIGHT_EVENT'].fillna('').str.contains(label, regex=False)
+            groups = (mask != mask.shift()).cumsum()
+
+            for _, grp in df[mask].groupby(groups):
+                start_idx    = grp.index[0]
+                end_idx      = grp.index[-1]
+                duration_sec = len(grp)
+
+                # ── Peak value — select the most meaningful sensor per event type
+                peak_value = None
+
+                if base_name == 'HARD_LANDING' and 'NormAc_peak' in grp.columns:
+                    peak_value = float(grp['NormAc_peak'].max())
+
+                elif base_name == 'HIGH_DESCENT_RATE' and 'VSpd' in grp.columns:
+                    peak_value = float(grp['VSpd'].min())   # most negative fpm
+
+                elif base_name in ('HIGH_APPROACH_SPEED', 'LOW_APPROACH_SPEED',
+                                   'OVERSPEED', 'LOW_AIRSPEED') and 'IAS' in grp.columns:
+                    peak_value = float(grp['IAS'].max()) \
+                                 if 'HIGH' in base_name or 'OVER' in base_name \
+                                 else float(grp['IAS'].min())
+
+                elif base_name == 'RAPID_POWER' and 'E1 Torq' in grp.columns:
+                    peak_value = float(grp['E1 Torq'].diff().abs().max())
+
+                elif base_name == 'STEEP_BANK' and 'Roll' in grp.columns:
+                    peak_value = float(grp['Roll'].abs().max())
+
+                elif base_name == 'NEGATIVE_G' and 'NormAc' in grp.columns:
+                    peak_value = float(grp['NormAc'].min())
+
+                elif base_name == 'TAIL_STRIKE_RISK' and 'Pitch' in grp.columns:
+                    peak_value = float(grp['Pitch'].max())
+
+                elif base_name == 'HIGH_ITT' and 'E1 ITT' in grp.columns:
+                    peak_value = float(grp['E1 ITT'].max())
+
+                events.append({
+                    'event'       : base_name,
+                    'severity'    : severity,
+                    'label'       : label,
+                    'start_row'   : int(start_idx),
+                    'end_row'     : int(end_idx),
+                    'duration_sec': int(duration_sec),
+                    'peak_value'  : round(peak_value, 2) if peak_value is not None else None,
+                })
+
+        # Sort by start row for chronological output
+        events.sort(key=lambda x: x['start_row'])
+        return events
+
 
     # ── 4. SINGLE-ROW CLASSIFIER
 
@@ -1129,6 +1192,13 @@ class FOQAFlightClassifier:
         4.  Loop now tracks hysteresis state, collects confidence + reason
         6a. Compute PHASE_STABILITY index (after audit)
         """
+        # ── Ensure a clean 0-based integer index throughout the pipeline.
+        # G1000 CSVs read with skiprows can carry duplicate or non-contiguous
+        # index labels which cause pandas to raise
+        # "cannot reindex on an axis with duplicate labels"
+        # inside rolling / iloc[::-1] operations in require_persistence().
+        df = df.reset_index(drop=True)
+
         print("  [1/8] Computing derived parameters...")
         df = self.compute_derived(df)
 
@@ -1140,6 +1210,12 @@ class FOQAFlightClassifier:
 
         print("  [4/8] Detecting special events (with persistence filter)...")
         df = self.detect_special_events(df)
+
+        events = self.extract_event_windows(df)
+
+        print("\n===== EVENT WINDOWS =====")
+        for e in events:
+            print(e)
 
         print("  [5/8] First-pass classification (hysteresis + confidence)...")
 
@@ -1405,9 +1481,16 @@ def process_flight_log(input_file: str,
 
     print("\n--- Special Events -----------------------------------------------")
     all_events = df_raw['FLIGHT_EVENT'].str.split('|').explode()
-    for ev, cnt in all_events.value_counts().items():
-        if ev != 'NORMAL':
-            print(f"  {ev:35s}: {cnt:4d} rows")
+    non_normal  = all_events[all_events != 'NORMAL']
+    if non_normal.empty:
+        print("  None detected")
+    else:
+        import re as _re
+        for label, cnt in non_normal.value_counts().items():
+            sev_m = _re.search(r'_S([123])$', label)
+            sev   = f"  [S{sev_m.group(1)}]" if sev_m else ""
+            base  = label[:sev_m.start()] if sev_m else label
+            print(f"  {base:35s}{sev}  {cnt:4d} rows")
 
     print("\n--- Quality Metrics ----------------------------------------------")
     print(f"  Mean confidence : {df_raw['PHASE_CONFIDENCE'].astype(float).mean():.3f}")
