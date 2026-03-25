@@ -1,5 +1,14 @@
 # EDA
 
+## How to run flight phase classifier
+
+```bash
+    python batch_flight_processor.py input/ output/
+    python batch_flight_processor.py input/ output/ --aircraft "Cessna 208B Grand Caravan EX"
+    python batch_flight_processor.py input/ output/ --flatten --debug
+    python batch_flight_processor.py --list-aircraft
+```
+
 ## Running
 
 ```bash
