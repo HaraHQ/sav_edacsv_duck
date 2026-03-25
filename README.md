@@ -3,6 +3,8 @@
 ## How to run flight phase classifier
 
 ```bash
+# Salah satu aja (sesuai kebutuhan)
+
     python batch_flight_processor.py input/ output/
     python batch_flight_processor.py input/ output/ --aircraft "Cessna 208B Grand Caravan EX"
     python batch_flight_processor.py input/ output/ --flatten --debug
