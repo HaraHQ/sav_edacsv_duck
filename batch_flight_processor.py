@@ -1,19 +1,34 @@
 #!/usr/bin/env python3
 """
-Batch Flight Phase Processor
-=============================
-Processes G1000/G950 CSV flight logs through FOQAFlightClassifier and writes
-classified output with all five result columns:
+Batch Flight Phase Processor - v4.0 FDA/Aering Compatible
+==========================================================
+Processes G1000/G950 CSV flight logs through FOQAFlightClassifier v4.0 and writes
+classified output with all seven result columns:
 
-    FLIGHT_PHASE     Phase label (CRUISE, APPROACH, TAKEOFF ROLL, …)
-    FLIGHT_EVENT     Pipe-separated severity-tagged events (HARD_LANDING_S3|…)
+    FLIGHT_PHASE     Phase label (CRUISE, APPROACH, FINAL APPROACH, TAKEOFF, LANDING, ...)
+                     Uses FDA/Aering standard naming:
+                     - PRE-FLIGHT (ground before taxi)
+                     - TAXI OUT (taxi to runway)
+                     - TAKEOFF (takeoff roll + rotation)
+                     - INITIAL CLIMB (first climb + go-arounds)
+                     - CLIMB (sustained climb)
+                     - CRUISE (level flight + maneuvering)
+                     - DESCENT (descent from cruise)
+                     - APPROACH (approach > 500ft AGL)
+                     - FINAL APPROACH (final approach Ã¢ÂÂ¤ 500ft AGL)
+                     - LANDING (flare + touchdown + rollout)
+                     - TAXI IN (taxi after landing)
+    
+    FLIGHT_EVENT     Pipe-separated severity-tagged events (LGN000_S3|...)
                      or NORMAL if no exceedance detected.
-    PHASE_CONFIDENCE Per-row confidence score 0.0–1.0
+    PHASE_CONFIDENCE Per-row confidence score 0.0-1.0
     PHASE_REASON     Witness tags explaining the phase decision
     PHASE_STABILITY  Rolling 10-row same-phase agreement ratio
+    AGL              Above Ground Level altitude (ft), barometric-derived
+    isGearGround     1 when AGL == 0 (gear on ground), 0 when airborne
 
 After classification each file's event windows are extracted via
-classifier.extract_event_windows() — one record per discrete event
+classifier.extract_event_windows() Ã¢ÂÂ one record per discrete event
 occurrence: start row, end row, duration, peak value, severity.
 
 Usage
@@ -36,9 +51,9 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 
-# ── Classifier ────────────────────────────────────────────────────────────────
+# Ã¢ÂÂÃ¢ÂÂ Classifier Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 try:
-    from flight_phase_classifier import (
+    from flight_phase_classifier_v2 import (
         FOQAFlightClassifier,
         AIRCRAFT_CONFIGS,
         FLIGHT_EVENT_DEFINITIONS,
@@ -50,14 +65,14 @@ except ImportError as e:
         "Ensure flight_phase_classifier.py is in the same directory.\n"
     )
 
-# ── Optional registration map ─────────────────────────────────────────────────
+# Ã¢ÂÂÃ¢ÂÂ Optional registration map Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 try:
     from aircraft_registration_map import get_aircraft_type_from_path
     REGISTRATION_MAP_AVAILABLE = True
 except ImportError:
     REGISTRATION_MAP_AVAILABLE = False
 
-# ── Numeric columns the classifier expects ────────────────────────────────────
+# Ã¢ÂÂÃ¢ÂÂ Numeric columns the classifier expects Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 NUMERIC_COLUMNS = [
     'VSpd', 'IAS', 'GndSpd', 'Pitch', 'Roll', 'LatAc', 'NormAc',
     'E1 FFlow', 'E1 Torq', 'E1 NP', 'E1 NG', 'E1 ITT',
@@ -68,13 +83,13 @@ NUMERIC_COLUMNS = [
 
 # Columns appended to every output CSV
 CLASSIFIER_COLUMNS = [
-    'FLIGHT_PHASE', 'FLIGHT_EVENT',
+    'FLIGHT_PHASE', 'FLIGHT_EVENT', 'SEVERITY',
     'PHASE_CONFIDENCE', 'PHASE_REASON', 'PHASE_STABILITY',
-    'AGL',
+    'AGL', 'isGearGround',
 ]
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 
 class BatchFlightProcessor:
 
@@ -94,12 +109,12 @@ class BatchFlightProcessor:
             'failed_files'      : 0,
             'total_rows'        : 0,
             'phase_distribution': {},
-            'event_distribution': {},   # label → occurrence count
+            'event_distribution': {},   # label Ã¢ÂÂ occurrence count
             'mean_confidence'   : [],   # per-file values; averaged at end
             'mean_stability'    : [],
         }
 
-    # ── Aircraft type resolution ──────────────────────────────────────────────
+    # Ã¢ÂÂÃ¢ÂÂ Aircraft type resolution Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 
     def detect_aircraft_type(self, csv_file: Path) -> str:
         """
@@ -115,7 +130,7 @@ class BatchFlightProcessor:
                 return ac
 
         try:
-            with open(csv_file, 'r', errors='replace') as f:
+            with open(csv_file, 'r', encoding='latin-1', errors='replace') as f:
                 first_line = f.readline()
 
             # G1000 header: key=value or key="value"
@@ -133,47 +148,47 @@ class BatchFlightProcessor:
 
         return 'Generic'
 
-    # ── Already-classified check ──────────────────────────────────────────────
+    # Ã¢ÂÂÃ¢ÂÂ Already-classified check Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 
     @staticmethod
     def _is_classified(header_line3: str) -> bool:
         return 'FLIGHT_PHASE' in header_line3
 
-    # ── Single file ───────────────────────────────────────────────────────────
+    # Ã¢ÂÂÃ¢ÂÂ Single file Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 
     def process_single_file(self, input_file: Path,
                              output_file: Path,
                              aircraft_type: str) -> bool:
         try:
-            # ── Guard: never overwrite the source file ────────────────────────
+            # Ã¢ÂÂÃ¢ÂÂ Guard: never overwrite the source file Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
             if input_file.resolve() == output_file.resolve():
                 raise ValueError(
-                    f"input and output are the same file — "
+                    f"input and output are the same file Ã¢ÂÂ "
                     f"refusing to overwrite source data: {input_file}"
                 )
 
-            # ── Read 3-line G1000 header ──────────────────────────────────────
-            with open(input_file, 'r', errors='replace') as f:
+            # Ã¢ÂÂÃ¢ÂÂ Read 3-line G1000 header Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+            with open(input_file, 'r', encoding='latin-1', errors='replace') as f:
                 header_line1 = f.readline()
                 header_line2 = f.readline()
                 header_line3 = f.readline().rstrip('\n')
 
-            # ── Skip already-classified files ─────────────────────────────────
+            # Ã¢ÂÂÃ¢ÂÂ Skip already-classified files Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
             if self._is_classified(header_line3):
                 return self._handle_already_classified(input_file, aircraft_type)
 
-            # ── Load original data as pure strings ────────────────────────────
+            # Ã¢ÂÂÃ¢ÂÂ Load original data as pure strings Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
             # dtype=str keeps every value exactly as recorded.
             # df_raw is NEVER written to after this point.
             df_raw = pd.read_csv(input_file, skiprows=2, dtype=str,
-                                 on_bad_lines='skip')
+                                 encoding='latin-1', on_bad_lines='skip')
             df_raw.columns = df_raw.columns.str.strip()
             original_columns = df_raw.columns.tolist()
 
             if df_raw.empty:
                 raise ValueError("No data rows after header.")
 
-            # ── Guard: refuse pre-classified input ────────────────────────────
+            # Ã¢ÂÂÃ¢ÂÂ Guard: refuse pre-classified input Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
             collision = [c for c in CLASSIFIER_COLUMNS if c in original_columns]
             if collision:
                 raise ValueError(
@@ -181,7 +196,7 @@ class BatchFlightProcessor:
                     f"Use the original source CSV."
                 )
 
-            # ── Drop duplicate timestamps into a new frame (df_raw unchanged) ─
+            # Ã¢ÂÂÃ¢ÂÂ Drop duplicate timestamps into a new frame (df_raw unchanged) Ã¢ÂÂ
             time_cols = [c for c in original_columns if c in ('Lcl Date', 'Lcl Time')]
             if len(time_cols) == 2:
                 df_dedup = df_raw.drop_duplicates(subset=time_cols, keep='last') \
@@ -192,7 +207,7 @@ class BatchFlightProcessor:
             else:
                 df_dedup = df_raw.reset_index(drop=True)
 
-            # ── Numeric working copy for classification ───────────────────────
+            # Ã¢ÂÂÃ¢ÂÂ Numeric working copy for classification Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
             df_work = df_dedup.copy()
             for col in NUMERIC_COLUMNS:
                 if col in df_work.columns:
@@ -201,13 +216,17 @@ class BatchFlightProcessor:
             df_work = ensure_columns(df_work)
             df_work = df_work.reset_index(drop=True)
 
-            # ── Classify ──────────────────────────────────────────────────────
+            # Ã¢ÂÂÃ¢ÂÂ Classify Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+            # Extract departure ICAO from filename: log_YYMMDD_HHMMSS_ICAO.csv
+            _stem_parts = input_file.stem.split('_')
+            dep_icao    = _stem_parts[-1].upper() if len(_stem_parts) >= 4 else ''
             clf     = FOQAFlightClassifier(
-                aircraft_type=aircraft_type, debug_mode=self.debug)
+                aircraft_type=aircraft_type, debug_mode=self.debug,
+                dep_icao=dep_icao)
             df_work = clf.classify(df_work)
             df_work['AGL'] = df_work['AGL'].round(1)
-            # ── Build output: original strings + classifier results ───────────
-            # df_dedup (and df_raw) are only read here — never written to.
+            # Ã¢ÂÂÃ¢ÂÂ Build output: original strings + classifier results Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+            # df_dedup (and df_raw) are only read here Ã¢ÂÂ never written to.
             # df_out is a brand-new frame; no column of df_dedup is mutated.
             df_out = pd.concat(
                 [df_dedup[original_columns].reset_index(drop=True),
@@ -215,15 +234,15 @@ class BatchFlightProcessor:
                 axis=1,
             )
 
-            # ── Extract structured event windows ──────────────────────────────
+            # Ã¢ÂÂÃ¢ÂÂ Extract structured event windows Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
             event_windows = clf.extract_event_windows(df_work)
 
-            # ── Quality metrics (all reads from df_work) ──────────────────────
+            # Ã¢ÂÂÃ¢ÂÂ Quality metrics (all reads from df_work) Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
             mean_conf  = float(df_work['PHASE_CONFIDENCE'].astype(float).mean())
             mean_stab  = float(df_work['PHASE_STABILITY'].astype(float).mean())
             dyn_thresh = df_work.attrs.get('dynamic_thresholds', {})
 
-            # ── Aggregate stats ───────────────────────────────────────────────
+            # Ã¢ÂÂÃ¢ÂÂ Aggregate stats Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
             phase_counts = df_work['FLIGHT_PHASE'].value_counts().to_dict()
 
             event_counts: dict = {}
@@ -243,13 +262,13 @@ class BatchFlightProcessor:
                 self.summary_stats['event_distribution'][lbl] = (
                     self.summary_stats['event_distribution'].get(lbl, 0) + cnt)
 
-            # ── Write output CSV (input_file never opened for writing) ─────────
+            # Ã¢ÂÂÃ¢ÂÂ Write output CSV (input_file never opened for writing) Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
             output_file.parent.mkdir(parents=True, exist_ok=True)
             self._write_classified_csv(
                 output_file, header_line1, header_line2, header_line3,
                 df_out, original_columns)
 
-            # ── Console summary ───────────────────────────────────────────────
+            # Ã¢ÂÂÃ¢ÂÂ Console summary Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
             self._print_file_summary(
                 phase_counts, event_windows, mean_conf, mean_stab,
                 dyn_thresh, len(df_out))
@@ -282,14 +301,14 @@ class BatchFlightProcessor:
             })
             return False
 
-    # ── Already-classified handler ────────────────────────────────────────────
+    # Ã¢ÂÂÃ¢ÂÂ Already-classified handler Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 
     def _handle_already_classified(self, input_file: Path,
                                     aircraft_type: str) -> bool:
         print(f"  [SKIP] already classified: {input_file.name}")
         try:
             df = pd.read_csv(input_file, skiprows=2, dtype=str,
-                             on_bad_lines='skip')
+                             encoding='latin-1', on_bad_lines='skip')
             df.columns = df.columns.str.strip()
             rows = len(df)
 
@@ -336,7 +355,7 @@ class BatchFlightProcessor:
         })
         return True
 
-    # ── CSV writer ────────────────────────────────────────────────────────────
+    # Ã¢ÂÂÃ¢ÂÂ CSV writer Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 
     @staticmethod
     def _write_classified_csv(output_file: Path,
@@ -348,7 +367,7 @@ class BatchFlightProcessor:
         Write classified CSV preserving the 3-line G1000 header.
 
         df_out must already contain original_columns + CLASSIFIER_COLUMNS.
-        It is a new frame built by the caller — no original frame is mutated.
+        It is a new frame built by the caller Ã¢ÂÂ no original frame is mutated.
         Uses csv.writer for correct quoting (PHASE_REASON may contain commas).
         """
         out_cols = original_columns + CLASSIFIER_COLUMNS
@@ -363,7 +382,7 @@ class BatchFlightProcessor:
             for row in rows_df.itertuples(index=False, name=None):
                 writer.writerow(row)
 
-    # ── Per-file console summary ──────────────────────────────────────────────
+    # Ã¢ÂÂÃ¢ÂÂ Per-file console summary Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 
     def _print_file_summary(self, phase_counts: dict, event_windows: list,
                              mean_conf: float, mean_stab: float,
@@ -383,14 +402,14 @@ class BatchFlightProcessor:
                 ev_groups[b]['count']  += 1
                 ev_groups[b]['max_sev'] = max(ev_groups[b]['max_sev'], s)
             summary = ', '.join(
-                f"{b}×{d['count']}(S{d['max_sev']})"
+                f"{b}ÃÂ{d['count']}(S{d['max_sev']})"
                 for b, d in sorted(ev_groups.items()))
             print(f"    Events  : {summary}")
             for ew in event_windows:
                 peak = f"  peak={ew['peak_value']:.2f}" \
                        if ew.get('peak_value') is not None else ''
                 print(f"      [{ew['label']:42s}] "
-                      f"rows {ew['start_row']}–{ew['end_row']} "
+                      f"rows {ew['start_row']}Ã¢ÂÂ{ew['end_row']} "
                       f"({ew['duration_sec']}s){peak}")
         else:
             print(f"    Events  : none")
@@ -401,10 +420,10 @@ class BatchFlightProcessor:
                   f"desc={dyn_thresh.get('descent_rate', '?'):.0f}fpm  "
                   f"cruiseAGL={dyn_thresh.get('cruise_agl', '?'):.0f}ft")
 
-    # ── File discovery ────────────────────────────────────────────────────────
+    # Ã¢ÂÂÃ¢ÂÂ File discovery Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 
     # G1000 filename pattern: log_YYMMDD_HHMMSS_ICAO.csv
-    # Files that don't match are not flight logs — skip silently.
+    # Files that don't match are not flight logs Ã¢ÂÂ skip silently.
     _G1000_PATTERN = re.compile(
         r'^log_\d{6}_\d{6}_[A-Z0-9]{4}\.csv$', re.IGNORECASE
     )
@@ -421,7 +440,7 @@ class BatchFlightProcessor:
             result.append(f)
         return sorted(result)
 
-    # ── Batch entry point ─────────────────────────────────────────────────────
+    # Ã¢ÂÂÃ¢ÂÂ Batch entry point Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 
     def process_batch(self, preserve_structure: bool = True,
                       pattern: str = '**/*.csv') -> None:
@@ -447,8 +466,8 @@ class BatchFlightProcessor:
 
             if folder_label != current_folder:
                 if current_folder is not None:
-                    print(f"\n  ✓ {current_folder} — {folder_file_count} file(s) done")
-                    print('  ' + '─' * 54)
+                    print(f"\n  Ã¢ÂÂ {current_folder} Ã¢ÂÂ {folder_file_count} file(s) done")
+                    print('  ' + 'Ã¢ÂÂ' * 54)
                 print(f"\n  Folder: {folder_label}")
                 current_folder    = folder_label
                 folder_file_count = 0
@@ -461,17 +480,17 @@ class BatchFlightProcessor:
             else:
                 output_file = self.output_dir / csv_file.name
 
-            print(f"\n  ► {csv_file.name}  [{ac_type}]")
+            print(f"\n  Ã¢ÂÂº {csv_file.name}  [{ac_type}]")
             if self.process_single_file(csv_file, output_file, ac_type):
                 folder_file_count += 1
 
         if current_folder is not None:
-            print(f"\n  ✓ {current_folder} — {folder_file_count} file(s) done")
+            print(f"\n  Ã¢ÂÂ {current_folder} Ã¢ÂÂ {folder_file_count} file(s) done")
 
         self._print_terminal_summary()
         self._write_summary_report()
 
-    # ── Terminal summary ──────────────────────────────────────────────────────
+    # Ã¢ÂÂÃ¢ÂÂ Terminal summary Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 
     def _print_terminal_summary(self) -> None:
         stats = self.summary_stats
@@ -512,12 +531,12 @@ class BatchFlightProcessor:
 
         failed = [e for e in self.processing_log if e['status'] == 'failed']
         if failed:
-            print(f"\n  ⚠  Failed ({len(failed)}):")
+            print(f"\n  Ã¢ÂÂ   Failed ({len(failed)}):")
             for e in failed:
-                print(f"    • {e['file']}: {e.get('error', '')}")
+                print(f"    Ã¢ÂÂ¢ {e['file']}: {e.get('error', '')}")
         print()
 
-    # ── Report writer ─────────────────────────────────────────────────────────
+    # Ã¢ÂÂÃ¢ÂÂ Report writer Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 
     def _write_summary_report(self) -> None:
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -530,7 +549,7 @@ class BatchFlightProcessor:
         mean_conf = sum(mc) / len(mc) if mc else 0.0
         mean_stab = sum(ms) / len(ms) if ms else 0.0
 
-        # ── JSON ─────────────────────────────────────────────────────────────
+        # Ã¢ÂÂÃ¢ÂÂ JSON Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
         def _native(obj):
             if isinstance(obj, (np.integer,)):  return int(obj)
             if isinstance(obj, (np.floating,)):  return float(obj)
@@ -539,7 +558,7 @@ class BatchFlightProcessor:
             return obj
 
         log_path = self.output_dir / 'processing_log.json'
-        with open(log_path, 'w') as f:
+        with open(log_path, 'w', encoding='utf-8') as f:
             json.dump(_native({
                 'timestamp'       : now.isoformat(),
                 'input_directory' : str(self.input_dir),
@@ -558,12 +577,12 @@ class BatchFlightProcessor:
                 'files': self.processing_log,
             }), f, indent=2)
 
-        # ── Text ─────────────────────────────────────────────────────────────
+        # Ã¢ÂÂÃ¢ÂÂ Text Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
         SEP  = '=' * 70
         SEP2 = '-' * 70
         report_path = self.output_dir / 'BATCH_SUMMARY_REPORT.txt'
 
-        with open(report_path, 'w') as f:
+        with open(report_path, 'w', encoding='utf-8') as f:
             f.write(SEP + '\n')
             f.write('BATCH FLIGHT PHASE CLASSIFICATION REPORT\n')
             f.write('Classifier : FOQAFlightClassifier\n')
@@ -657,7 +676,7 @@ class BatchFlightProcessor:
                                'description', '')[:60]
                         f.write(
                             f'  [{ew["label"]:42s}] '
-                            f'rows {ew["start_row"]:5d}–{ew["end_row"]:5d} '
+                            f'rows {ew["start_row"]:5d}Ã¢ÂÂ{ew["end_row"]:5d} '
                             f'({ew["duration_sec"]:3d}s){peak}\n')
                         if desc:
                             f.write(f'    {desc}\n')
@@ -671,13 +690,13 @@ class BatchFlightProcessor:
         print(f'    {log_path}')
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 #  CLI
-# ─────────────────────────────────────────────────────────────────────────────
+# Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Batch FOQA Flight Phase Classifier',
+        description='Batch FOQA Flight Phase Classifier v4.0 (FDA/Aering)',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Directory layouts
@@ -685,6 +704,11 @@ Directory layouts
 Single folder:          input/flight_001.csv
 Multi-aircraft folders: input/PK-SNO/flight_001.csv
                         input/PK-SNE/flight_002.csv
+
+Phase Names (FDA/Aering Standard)
+----------------------------------
+PRE-FLIGHT, TAXI OUT, TAKEOFF, INITIAL CLIMB, CLIMB, CRUISE,
+DESCENT, APPROACH, FINAL APPROACH, LANDING, TAXI IN
 
 """
 )
@@ -694,7 +718,7 @@ Multi-aircraft folders: input/PK-SNO/flight_001.csv
     parser.add_argument('--aircraft', '-a', default='Auto',
                         help='Force aircraft type (default: Auto-detect)')
     parser.add_argument('--flatten',  action='store_true',
-                        help='Write all files flat — no subfolder mirror')
+                        help='Write all files flat Ã¢ÂÂ no subfolder mirror')
     parser.add_argument('--pattern',  default='**/*.csv',
                         help='Glob pattern (default: **/*.csv)')
     parser.add_argument('--debug',    action='store_true',
