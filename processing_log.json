@@ -1,0 +1,2122 @@
+{
+  "timestamp": "2026-03-17T13:26:14.119901",
+  "input_directory": "Raw_Data",
+  "output_directory": "Processed_Data",
+  "summary": {
+    "total_files": 43,
+    "processed_files": 43,
+    "skipped_files": 0,
+    "failed_files": 0,
+    "total_rows": 82385,
+    "mean_confidence": 0.661,
+    "mean_stability": 0.974,
+    "phase_distribution": {
+      "CLIMB": 21553,
+      "CRUISE": 18377,
+      "DESCENT": 17426,
+      "PRE-FLIGHT": 3341,
+      "APPROACH": 5108,
+      "TAXI OUT": 6759,
+      "FINAL APPROACH": 1906,
+      "TAXI IN": 3517,
+      "INITIAL CLIMB": 1454,
+      "TAKEOFF": 1125,
+      "LANDING": 1819
+    },
+    "event_distribution": {
+      "NORM_G_HI_TDWN_S3": 1,
+      "GND_SPD_HI_TAXI_S3": 22,
+      "ROLL_HI_500FT_S1": 3,
+      "ROLL_HI_500FT_S2": 1,
+      "AIR_SPD_HI_50FT_S1": 7,
+      "ROD_HI_500FT_S3": 2,
+      "ROD_HI_500FT_S2": 2,
+      "AIR_SPD_HI_LDG_S1": 1,
+      "NORM_G_HI_TO_S1": 5,
+      "ROLL_HI_LIFTOFF_20FT_S2": 2,
+      "UNSTABLE_APP_S2": 2,
+      "NORM_G_HI_TO_S2": 3,
+      "AIR_SPD_HI_LDG_S3": 1,
+      "AIR_SPD_HI_1000_500FT_S1": 3,
+      "AIR_SPD_HI_50FT_S2": 2,
+      "ROLL_HI_LIFTOFF_20FT_S1": 2,
+      "ROD_HI_500FT_S1": 2,
+      "AIR_SPD_HI_1000_500FT_S2": 3,
+      "AP_ENGAGED_EARLY_TO_S1": 1,
+      "PROP_SPD_TO_HI_S3": 1,
+      "NORM_G_HI_TO_S3": 3,
+      "AIR_SPD_LO_500_50FT_S1": 1,
+      "AIR_SPD_HI_50FT_S3": 1,
+      "AIR_SPD_HI_500_50FT_S1": 1
+    }
+  },
+  "files": [
+    {
+      "file": "log_260223_214917_WAYY.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 2585,
+      "phases": {
+        "CLIMB": 955,
+        "CRUISE": 386,
+        "DESCENT": 360,
+        "PRE-FLIGHT": 300,
+        "APPROACH": 219,
+        "TAXI OUT": 181,
+        "FINAL APPROACH": 57,
+        "TAXI IN": 43,
+        "INITIAL CLIMB": 38,
+        "TAKEOFF": 30,
+        "LANDING": 16
+      },
+      "event_occurrences": {
+        "NORM_G_HI_TDWN_S3": 1,
+        "GND_SPD_HI_TAXI_S3": 1
+      },
+      "event_windows": [
+        {
+          "event": "NORM_G_HI_TDWN",
+          "severity": 3,
+          "label": "NORM_G_HI_TDWN_S3",
+          "phase": "LANDING",
+          "start_row": 2530,
+          "end_row": 2532,
+          "duration_sec": 3,
+          "peak_value": 0.91,
+          "peak_unit": "g"
+        },
+        {
+          "event": "GND_SPD_HI_TAXI",
+          "severity": 3,
+          "label": "GND_SPD_HI_TAXI_S3",
+          "phase": "TAXI IN",
+          "start_row": 2542,
+          "end_row": 2542,
+          "duration_sec": 1,
+          "peak_value": 37.15,
+          "peak_unit": "kts"
+        }
+      ],
+      "mean_confidence": 0.625,
+      "mean_stability": 0.967,
+      "dynamic_thresholds": {
+        "climb_rate": 600.0,
+        "descent_rate": 600.0,
+        "cruise_agl": 13383.0
+      }
+    },
+    {
+      "file": "log_260223_223903_WAYB.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 1080,
+      "phases": {
+        "CRUISE": 422,
+        "APPROACH": 145,
+        "DESCENT": 138,
+        "CLIMB": 121,
+        "TAXI OUT": 76,
+        "LANDING": 37,
+        "TAXI IN": 34,
+        "FINAL APPROACH": 32,
+        "INITIAL CLIMB": 29,
+        "PRE-FLIGHT": 23,
+        "TAKEOFF": 23
+      },
+      "event_occurrences": {
+        "ROLL_HI_500FT_S1": 1,
+        "ROLL_HI_500FT_S2": 1,
+        "AIR_SPD_HI_50FT_S1": 1,
+        "ROD_HI_500FT_S3": 1,
+        "ROD_HI_500FT_S2": 1,
+        "AIR_SPD_HI_LDG_S1": 1,
+        "GND_SPD_HI_TAXI_S3": 1
+      },
+      "event_windows": [
+        {
+          "event": "ROLL_HI_500FT",
+          "severity": 1,
+          "label": "ROLL_HI_500FT_S1",
+          "phase": "CRUISE",
+          "start_row": 812,
+          "end_row": 820,
+          "duration_sec": 9,
+          "peak_value": 40.88,
+          "peak_unit": "deg"
+        },
+        {
+          "event": "ROLL_HI_500FT",
+          "severity": 2,
+          "label": "ROLL_HI_500FT_S2",
+          "phase": "CRUISE",
+          "start_row": 821,
+          "end_row": 829,
+          "duration_sec": 9,
+          "peak_value": 46.54,
+          "peak_unit": "deg"
+        },
+        {
+          "event": "AIR_SPD_HI_50FT",
+          "severity": 1,
+          "label": "AIR_SPD_HI_50FT_S1",
+          "phase": "FINAL APPROACH",
+          "start_row": 978,
+          "end_row": 1008,
+          "duration_sec": 31,
+          "peak_value": 97.07,
+          "peak_unit": "kts"
+        },
+        {
+          "event": "ROD_HI_500FT",
+          "severity": 3,
+          "label": "ROD_HI_500FT_S3",
+          "phase": "FINAL APPROACH",
+          "start_row": 978,
+          "end_row": 984,
+          "duration_sec": 7,
+          "peak_value": -1946.71,
+          "peak_unit": "fpm"
+        },
+        {
+          "event": "ROD_HI_500FT",
+          "severity": 2,
+          "label": "ROD_HI_500FT_S2",
+          "phase": "FINAL APPROACH",
+          "start_row": 985,
+          "end_row": 988,
+          "duration_sec": 4,
+          "peak_value": -1624.96,
+          "peak_unit": "fpm"
+        },
+        {
+          "event": "AIR_SPD_HI_LDG",
+          "severity": 1,
+          "label": "AIR_SPD_HI_LDG_S1",
+          "phase": "LANDING",
+          "start_row": 1009,
+          "end_row": 1025,
+          "duration_sec": 17,
+          "peak_value": 94.62,
+          "peak_unit": "kts"
+        },
+        {
+          "event": "GND_SPD_HI_TAXI",
+          "severity": 3,
+          "label": "GND_SPD_HI_TAXI_S3",
+          "phase": "TAXI IN",
+          "start_row": 1046,
+          "end_row": 1047,
+          "duration_sec": 2,
+          "peak_value": 36.54,
+          "peak_unit": "kts"
+        }
+      ],
+      "mean_confidence": 0.621,
+      "mean_stability": 0.951,
+      "dynamic_thresholds": {
+        "climb_rate": 600.0,
+        "descent_rate": 600.0,
+        "cruise_agl": 4130.0
+      }
+    },
+    {
+      "file": "log_260223_230236_WAVO.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 1987,
+      "phases": {
+        "DESCENT": 568,
+        "CLIMB": 488,
+        "CRUISE": 387,
+        "APPROACH": 201,
+        "TAXI IN": 103,
+        "PRE-FLIGHT": 93,
+        "FINAL APPROACH": 49,
+        "INITIAL CLIMB": 40,
+        "TAKEOFF": 32,
+        "LANDING": 26
+      },
+      "event_occurrences": {
+        "NORM_G_HI_TO_S1": 1,
+        "ROLL_HI_LIFTOFF_20FT_S2": 1,
+        "GND_SPD_HI_TAXI_S3": 1
+      },
+      "event_windows": [
+        {
+          "event": "NORM_G_HI_TO",
+          "severity": 1,
+          "label": "NORM_G_HI_TO_S1",
+          "phase": "TAKEOFF",
+          "start_row": 97,
+          "end_row": 99,
+          "duration_sec": 3,
+          "peak_value": 0.31,
+          "peak_unit": "g"
+        },
+        {
+          "event": "ROLL_HI_LIFTOFF_20FT",
+          "severity": 2,
+          "label": "ROLL_HI_LIFTOFF_20FT_S2",
+          "phase": "TAKEOFF",
+          "start_row": 115,
+          "end_row": 119,
+          "duration_sec": 5,
+          "peak_value": 23.17,
+          "peak_unit": "deg"
+        },
+        {
+          "event": "GND_SPD_HI_TAXI",
+          "severity": 3,
+          "label": "GND_SPD_HI_TAXI_S3",
+          "phase": "TAXI IN",
+          "start_row": 1884,
+          "end_row": 1920,
+          "duration_sec": 38,
+          "peak_value": 36.62,
+          "peak_unit": "kts"
+        }
+      ],
+      "mean_confidence": 0.609,
+      "mean_stability": 0.975,
+      "dynamic_thresholds": {
+        "climb_rate": 600.0,
+        "descent_rate": 600.0,
+        "cruise_agl": 13883.6
+      }
+    },
+    {
+      "file": "log_260223_235001_WAYY.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 2130,
+      "phases": {
+        "CLIMB": 939,
+        "CRUISE": 453,
+        "DESCENT": 305,
+        "APPROACH": 139,
+        "TAXI OUT": 96,
+        "FINAL APPROACH": 54,
+        "TAXI IN": 43,
+        "INITIAL CLIMB": 32,
+        "TAKEOFF": 30,
+        "PRE-FLIGHT": 20,
+        "LANDING": 19
+      },
+      "event_occurrences": {
+        "AIR_SPD_HI_50FT_S1": 1,
+        "GND_SPD_HI_TAXI_S3": 1
+      },
+      "event_windows": [
+        {
+          "event": "AIR_SPD_HI_50FT",
+          "severity": 1,
+          "label": "AIR_SPD_HI_50FT_S1",
+          "phase": "FINAL APPROACH",
+          "start_row": 2009,
+          "end_row": 2017,
+          "duration_sec": 9,
+          "peak_value": 93.82,
+          "peak_unit": "kts"
+        },
+        {
+          "event": "GND_SPD_HI_TAXI",
+          "severity": 3,
+          "label": "GND_SPD_HI_TAXI_S3",
+          "phase": "TAXI IN",
+          "start_row": 2087,
+          "end_row": 2088,
+          "duration_sec": 2,
+          "peak_value": 38.84,
+          "peak_unit": "kts"
+        }
+      ],
+      "mean_confidence": 0.577,
+      "mean_stability": 0.965,
+      "dynamic_thresholds": {
+        "climb_rate": 600.0,
+        "descent_rate": 600.0,
+        "cruise_agl": 6032.0
+      }
+    },
+    {
+      "file": "log_260224_003347_WAYB.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 1578,
+      "phases": {
+        "DESCENT": 510,
+        "CLIMB": 382,
+        "CRUISE": 229,
+        "APPROACH": 123,
+        "TAXI IN": 84,
+        "FINAL APPROACH": 59,
+        "TAXI OUT": 56,
+        "INITIAL CLIMB": 54,
+        "LANDING": 30,
+        "PRE-FLIGHT": 27,
+        "TAKEOFF": 24
+      },
+      "event_occurrences": {
+        "GND_SPD_HI_TAXI_S3": 1
+      },
+      "event_windows": [
+        {
+          "event": "GND_SPD_HI_TAXI",
+          "severity": 3,
+          "label": "GND_SPD_HI_TAXI_S3",
+          "phase": "TAXI IN",
+          "start_row": 1494,
+          "end_row": 1534,
+          "duration_sec": 42,
+          "peak_value": 44.57,
+          "peak_unit": "kts"
+        }
+      ],
+      "mean_confidence": 0.621,
+      "mean_stability": 0.971,
+      "dynamic_thresholds": {
+        "climb_rate": 600.0,
+        "descent_rate": 600.0,
+        "cruise_agl": 14371.199999999999
+      }
+    },
+    {
+      "file": "log_260224_010950_WAYY.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 2145,
+      "phases": {
+        "CLIMB": 926,
+        "CRUISE": 346,
+        "DESCENT": 301,
+        "APPROACH": 209,
+        "PRE-FLIGHT": 152,
+        "TAXI OUT": 51,
+        "FINAL APPROACH": 41,
+        "TAXI IN": 35,
+        "INITIAL CLIMB": 33,
+        "TAKEOFF": 32,
+        "LANDING": 19
+      },
+      "event_occurrences": {
+        "UNSTABLE_APP_S2": 1
+      },
+      "event_windows": [
+        {
+          "event": "UNSTABLE_APP",
+          "severity": 2,
+          "label": "UNSTABLE_APP_S2",
+          "phase": "APPROACH",
+          "start_row": 2014,
+          "end_row": 2021,
+          "duration_sec": 8,
+          "peak_value": null,
+          "peak_unit": null
+        }
+      ],
+      "mean_confidence": 0.596,
+      "mean_stability": 0.966,
+      "dynamic_thresholds": {
+        "climb_rate": 600.0,
+        "descent_rate": 600.0,
+        "cruise_agl": 6034.0
+      }
+    },
+    {
+      "file": "log_260224_015131_WAYB.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 1777,
+      "phases": {
+        "DESCENT": 590,
+        "CLIMB": 330,
+        "CRUISE": 262,
+        "TAXI OUT": 192,
+        "APPROACH": 123,
+        "TAXI IN": 105,
+        "FINAL APPROACH": 65,
+        "INITIAL CLIMB": 54,
+        "TAKEOFF": 24,
+        "PRE-FLIGHT": 18,
+        "LANDING": 14
+      },
+      "event_occurrences": {
+        "NORM_G_HI_TO_S2": 1
+      },
+      "event_windows": [
+        {
+          "event": "NORM_G_HI_TO",
+          "severity": 2,
+          "label": "NORM_G_HI_TO_S2",
+          "phase": "TAKEOFF",
+          "start_row": 212,
+          "end_row": 214,
+          "duration_sec": 3,
+          "peak_value": 0.36,
+          "peak_unit": "g"
+        }
+      ],
+      "mean_confidence": 0.641,
+      "mean_stability": 0.975,
+      "dynamic_thresholds": {
+        "climb_rate": 600.0,
+        "descent_rate": 600.0,
+        "cruise_agl": 14365.300000000001
+      }
+    },
+    {
+      "file": "log_260224_024227_WAYY.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 3211,
+      "phases": {
+        "CRUISE": 1210,
+        "CLIMB": 721,
+        "DESCENT": 697,
+        "PRE-FLIGHT": 136,
+        "TAXI IN": 134,
+        "APPROACH": 101,
+        "TAXI OUT": 83,
+        "FINAL APPROACH": 53,
+        "LANDING": 26,
+        "TAKEOFF": 25,
+        "INITIAL CLIMB": 25
+      },
+      "event_occurrences": {
+        "GND_SPD_HI_TAXI_S3": 1
+      },
+      "event_windows": [
+        {
+          "event": "GND_SPD_HI_TAXI",
+          "severity": 3,
+          "label": "GND_SPD_HI_TAXI_S3",
+          "phase": "TAXI IN",
+          "start_row": 3077,
+          "end_row": 3081,
+          "duration_sec": 5,
+          "peak_value": 39.25,
+          "peak_unit": "kts"
+        }
+      ],
+      "mean_confidence": 0.618,
+      "mean_stability": 0.984,
+      "dynamic_thresholds": {
+        "climb_rate": 600.0,
+        "descent_rate": 600.0,
+        "cruise_agl": 10455.0
+      }
+    },
+    {
+      "file": "log_260224_034644_WABI.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 1549,
+      "phases": {
+        "LANDING": 905,
+        "CLIMB": 468,
+        "TAXI OUT": 66,
+        "INITIAL CLIMB": 34,
+        "PRE-FLIGHT": 28,
+        "CRUISE": 20,
+        "TAKEOFF": 17,
+        "DESCENT": 11
+      },
+      "event_occurrences": {
+        "GND_SPD_HI_TAXI_S3": 1,
+        "AIR_SPD_HI_LDG_S3": 1
+      },
+      "event_windows": [
+        {
+          "event": "GND_SPD_HI_TAXI",
+          "severity": 3,
+          "label": "GND_SPD_HI_TAXI_S3",
+          "phase": "TAXI OUT",
+          "start_row": 89,
+          "end_row": 93,
+          "duration_sec": 5,
+          "peak_value": 44.9,
+          "peak_unit": "kts"
+        },
+        {
+          "event": "AIR_SPD_HI_LDG",
+          "severity": 3,
+          "label": "AIR_SPD_HI_LDG_S3",
+          "phase": "LANDING",
+          "start_row": 637,
+          "end_row": 1548,
+          "duration_sec": 913,
+          "peak_value": 144.69,
+          "peak_unit": "kts"
+        }
+      ],
+      "mean_confidence": 0.736,
+      "mean_stability": 0.977,
+      "dynamic_thresholds": {
+        "climb_rate": 600.0,
+        "descent_rate": 200.0,
+        "cruise_agl": 500.0
+      }
+    },
+    {
+      "file": "log_260224_041254_WAYO.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 1412,
+      "phases": {
+        "DESCENT": 666,
+        "CRUISE": 446,
+        "TAXI IN": 125,
+        "APPROACH": 78,
+        "FINAL APPROACH": 57,
+        "LANDING": 24,
+        "TAKEOFF": 9,
+        "INITIAL CLIMB": 7
+      },
+      "event_occurrences": {
+        "AIR_SPD_HI_1000_500FT_S1": 1,
+        "AIR_SPD_HI_50FT_S2": 1
+      },
+      "event_windows": [
+        {
+          "event": "AIR_SPD_HI_1000_500FT",
+          "severity": 1,
+          "label": "AIR_SPD_HI_1000_500FT_S1",
+          "phase": "APPROACH",
+          "start_row": 1164,
+          "end_row": 1182,
+          "duration_sec": 19,
+          "peak_value": 136.92,
+          "peak_unit": "kts"
+        },
+        {
+          "event": "AIR_SPD_HI_50FT",
+          "severity": 2,
+          "label": "AIR_SPD_HI_50FT_S2",
+          "phase": "FINAL APPROACH",
+          "start_row": 1206,
+          "end_row": 1214,
+          "duration_sec": 9,
+          "peak_value": 101.84,
+          "peak_unit": "kts"
+        }
+      ],
+      "mean_confidence": 0.615,
+      "mean_stability": 0.975,
+      "dynamic_thresholds": {
+        "climb_rate": 200.0,
+        "descent_rate": 600.0,
+        "cruise_agl": 11375.4
+      }
+    },
+    {
+      "file": "log_260224_215902_WAYY.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 3455,
+      "phases": {
+        "TAXI OUT": 1101,
+        "CLIMB": 958,
+        "CRUISE": 663,
+        "DESCENT": 292,
+        "APPROACH": 134,
+        "PRE-FLIGHT": 85,
+        "TAXI IN": 70,
+        "INITIAL CLIMB": 61,
+        "FINAL APPROACH": 41,
+        "TAKEOFF": 34,
+        "LANDING": 16
+      },
+      "event_occurrences": {
+        "GND_SPD_HI_TAXI_S3": 1
+      },
+      "event_windows": [
+        {
+          "event": "GND_SPD_HI_TAXI",
+          "severity": 3,
+          "label": "GND_SPD_HI_TAXI_S3",
+          "phase": "TAXI IN",
+          "start_row": 3385,
+          "end_row": 3386,
+          "duration_sec": 2,
+          "peak_value": 38.68,
+          "peak_unit": "kts"
+        }
+      ],
+      "mean_confidence": 0.689,
+      "mean_stability": 0.986,
+      "dynamic_thresholds": {
+        "climb_rate": 600.0,
+        "descent_rate": 200.0,
+        "cruise_agl": 5561.0
+      }
+    },
+    {
+      "file": "log_260224_230225_WAYB.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 1186,
+      "phases": {
+        "CRUISE": 303,
+        "DESCENT": 231,
+        "TAXI OUT": 191,
+        "APPROACH": 110,
+        "CLIMB": 107,
+        "TAXI IN": 91,
+        "INITIAL CLIMB": 46,
+        "LANDING": 42,
+        "FINAL APPROACH": 35,
+        "TAKEOFF": 24,
+        "PRE-FLIGHT": 6
+      },
+      "event_occurrences": {
+        "NORM_G_HI_TO_S1": 1,
+        "GND_SPD_HI_TAXI_S3": 1
+      },
+      "event_windows": [
+        {
+          "event": "NORM_G_HI_TO",
+          "severity": 1,
+          "label": "NORM_G_HI_TO_S1",
+          "phase": "TAKEOFF",
+          "start_row": 200,
+          "end_row": 202,
+          "duration_sec": 3,
+          "peak_value": 0.35,
+          "peak_unit": "g"
+        },
+        {
+          "event": "GND_SPD_HI_TAXI",
+          "severity": 3,
+          "label": "GND_SPD_HI_TAXI_S3",
+          "phase": "TAXI IN",
+          "start_row": 1095,
+          "end_row": 1097,
+          "duration_sec": 3,
+          "peak_value": 39.79,
+          "peak_unit": "kts"
+        }
+      ],
+      "mean_confidence": 0.69,
+      "mean_stability": 0.949,
+      "dynamic_thresholds": {
+        "climb_rate": 600.0,
+        "descent_rate": 600.0,
+        "cruise_agl": 4144.0
+      }
+    },
+    {
+      "file": "log_260224_232556_WAVO.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 2285,
+      "phases": {
+        "CRUISE": 576,
+        "DESCENT": 560,
+        "CLIMB": 502,
+        "TAXI IN": 257,
+        "APPROACH": 167,
+        "FINAL APPROACH": 59,
+        "INITIAL CLIMB": 54,
+        "PRE-FLIGHT": 50,
+        "TAKEOFF": 37,
+        "LANDING": 23
+      },
+      "event_occurrences": {
+        "NORM_G_HI_TO_S2": 1,
+        "ROLL_HI_LIFTOFF_20FT_S1": 1
+      },
+      "event_windows": [
+        {
+          "event": "NORM_G_HI_TO",
+          "severity": 2,
+          "label": "NORM_G_HI_TO_S2",
+          "phase": "TAKEOFF",
+          "start_row": 58,
+          "end_row": 60,
+          "duration_sec": 3,
+          "peak_value": 0.37,
+          "peak_unit": "g"
+        },
+        {
+          "event": "ROLL_HI_LIFTOFF_20FT",
+          "severity": 1,
+          "label": "ROLL_HI_LIFTOFF_20FT_S1",
+          "phase": "TAKEOFF",
+          "start_row": 70,
+          "end_row": 78,
+          "duration_sec": 9,
+          "peak_value": 22.2,
+          "peak_unit": "deg"
+        }
+      ],
+      "mean_confidence": 0.623,
+      "mean_stability": 0.977,
+      "dynamic_thresholds": {
+        "climb_rate": 600.0,
+        "descent_rate": 600.0,
+        "cruise_agl": 13874.6
+      }
+    },
+    {
+      "file": "log_260225_002153_WAYY.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 2183,
+      "phases": {
+        "CLIMB": 975,
+        "CRUISE": 342,
+        "DESCENT": 324,
+        "TAXI OUT": 164,
+        "APPROACH": 121,
+        "TAXI IN": 97,
+        "PRE-FLIGHT": 49,
+        "FINAL APPROACH": 35,
+        "TAKEOFF": 32,
+        "INITIAL CLIMB": 26,
+        "LANDING": 18
+      },
+      "event_occurrences": {
+        "GND_SPD_HI_TAXI_S3": 1
+      },
+      "event_windows": [
+        {
+          "event": "GND_SPD_HI_TAXI",
+          "severity": 3,
+          "label": "GND_SPD_HI_TAXI_S3",
+          "phase": "TAXI IN",
+          "start_row": 2086,
+          "end_row": 2087,
+          "duration_sec": 2,
+          "peak_value": 38.43,
+          "peak_unit": "kts"
+        }
+      ],
+      "mean_confidence": 0.602,
+      "mean_stability": 0.973,
+      "dynamic_thresholds": {
+        "climb_rate": 600.0,
+        "descent_rate": 600.0,
+        "cruise_agl": 6022.0
+      }
+    },
+    {
+      "file": "log_260225_011233_WAYB.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 2051,
+      "phases": {
+        "DESCENT": 602,
+        "CRUISE": 560,
+        "CLIMB": 305,
+        "TAXI IN": 142,
+        "TAXI OUT": 140,
+        "APPROACH": 119,
+        "FINAL APPROACH": 58,
+        "INITIAL CLIMB": 50,
+        "PRE-FLIGHT": 28,
+        "TAKEOFF": 27,
+        "LANDING": 20
+      },
+      "event_occurrences": {
+        "NORM_G_HI_TO_S1": 1,
+        "NORM_G_HI_TO_S2": 1,
+        "AIR_SPD_HI_1000_500FT_S1": 1
+      },
+      "event_windows": [
+        {
+          "event": "NORM_G_HI_TO",
+          "severity": 1,
+          "label": "NORM_G_HI_TO_S1",
+          "phase": "TAKEOFF",
+          "start_row": 171,
+          "end_row": 173,
+          "duration_sec": 3,
+          "peak_value": 0.32,
+          "peak_unit": "g"
+        },
+        {
+          "event": "NORM_G_HI_TO",
+          "severity": 2,
+          "label": "NORM_G_HI_TO_S2",
+          "phase": "TAKEOFF",
+          "start_row": 175,
+          "end_row": 177,
+          "duration_sec": 3,
+          "peak_value": 0.38,
+          "peak_unit": "g"
+        },
+        {
+          "event": "AIR_SPD_HI_1000_500FT",
+          "severity": 1,
+          "label": "AIR_SPD_HI_1000_500FT_S1",
+          "phase": "APPROACH",
+          "start_row": 1754,
+          "end_row": 1772,
+          "duration_sec": 19,
+          "peak_value": 130.74,
+          "peak_unit": "kts"
+        }
+      ],
+      "mean_confidence": 0.637,
+      "mean_stability": 0.974,
+      "dynamic_thresholds": {
+        "climb_rate": 600.0,
+        "descent_rate": 600.0,
+        "cruise_agl": 12880.2
+      }
+    },
+    {
+      "file": "log_260225_020831_WAYY.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 2288,
+      "phases": {
+        "CLIMB": 996,
+        "CRUISE": 343,
+        "DESCENT": 307,
+        "TAXI OUT": 252,
+        "APPROACH": 114,
+        "TAXI IN": 102,
+        "INITIAL CLIMB": 57,
+        "PRE-FLIGHT": 37,
+        "TAKEOFF": 35,
+        "FINAL APPROACH": 29,
+        "LANDING": 16
+      },
+      "event_occurrences": {
+        "ROD_HI_500FT_S1": 1,
+        "GND_SPD_HI_TAXI_S3": 1
+      },
+      "event_windows": [
+        {
+          "event": "ROD_HI_500FT",
+          "severity": 1,
+          "label": "ROD_HI_500FT_S1",
+          "phase": "FINAL APPROACH",
+          "start_row": 2156,
+          "end_row": 2167,
+          "duration_sec": 13,
+          "peak_value": -1220.7,
+          "peak_unit": "fpm"
+        },
+        {
+          "event": "GND_SPD_HI_TAXI",
+          "severity": 3,
+          "label": "GND_SPD_HI_TAXI_S3",
+          "phase": "TAXI IN",
+          "start_row": 2186,
+          "end_row": 2187,
+          "duration_sec": 2,
+          "peak_value": 36.43,
+          "peak_unit": "kts"
+        }
+      ],
+      "mean_confidence": 0.627,
+      "mean_stability": 0.969,
+      "dynamic_thresholds": {
+        "climb_rate": 600.0,
+        "descent_rate": 600.0,
+        "cruise_agl": 6012.999999999999
+      }
+    },
+    {
+      "file": "log_260225_025550_WAYB.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 2320,
+      "phases": {
+        "CRUISE": 1023,
+        "DESCENT": 664,
+        "CLIMB": 134,
+        "TAXI IN": 113,
+        "APPROACH": 110,
+        "TAXI OUT": 70,
+        "FINAL APPROACH": 64,
+        "INITIAL CLIMB": 56,
+        "PRE-FLIGHT": 40,
+        "TAKEOFF": 26,
+        "LANDING": 20
+      },
+      "event_occurrences": {
+        "AIR_SPD_HI_1000_500FT_S2": 1,
+        "AIR_SPD_HI_50FT_S1": 1
+      },
+      "event_windows": [
+        {
+          "event": "AIR_SPD_HI_1000_500FT",
+          "severity": 2,
+          "label": "AIR_SPD_HI_1000_500FT_S2",
+          "phase": "APPROACH",
+          "start_row": 2064,
+          "end_row": 2079,
+          "duration_sec": 16,
+          "peak_value": 138.74,
+          "peak_unit": "kts"
+        },
+        {
+          "event": "AIR_SPD_HI_50FT",
+          "severity": 1,
+          "label": "AIR_SPD_HI_50FT_S1",
+          "phase": "FINAL APPROACH",
+          "start_row": 2123,
+          "end_row": 2129,
+          "duration_sec": 7,
+          "peak_value": 98.89,
+          "peak_unit": "kts"
+        }
+      ],
+      "mean_confidence": 0.617,
+      "mean_stability": 0.97,
+      "dynamic_thresholds": {
+        "climb_rate": 600.0,
+        "descent_rate": 600.0,
+        "cruise_agl": 10371.9
+      }
+    },
+    {
+      "file": "log_260225_040402_WAYY.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 2402,
+      "phases": {
+        "CRUISE": 989,
+        "DESCENT": 445,
+        "CLIMB": 396,
+        "APPROACH": 203,
+        "PRE-FLIGHT": 92,
+        "TAXI IN": 60,
+        "TAXI OUT": 59,
+        "FINAL APPROACH": 58,
+        "INITIAL CLIMB": 57,
+        "TAKEOFF": 30,
+        "LANDING": 13
+      },
+      "event_occurrences": {
+        "AP_ENGAGED_EARLY_TO_S1": 1,
+        "AIR_SPD_HI_1000_500FT_S2": 1,
+        "AIR_SPD_HI_1000_500FT_S1": 1,
+        "GND_SPD_HI_TAXI_S3": 1
+      },
+      "event_windows": [
+        {
+          "event": "AP_ENGAGED_EARLY_TO",
+          "severity": 1,
+          "label": "AP_ENGAGED_EARLY_TO_S1",
+          "phase": "INITIAL CLIMB",
+          "start_row": 231,
+          "end_row": 231,
+          "duration_sec": 1,
+          "peak_value": null,
+          "peak_unit": "ft"
+        },
+        {
+          "event": "AIR_SPD_HI_1000_500FT",
+          "severity": 2,
+          "label": "AIR_SPD_HI_1000_500FT_S2",
+          "phase": "APPROACH",
+          "start_row": 2113,
+          "end_row": 2151,
+          "duration_sec": 39,
+          "peak_value": 151.44,
+          "peak_unit": "kts"
+        },
+        {
+          "event": "AIR_SPD_HI_1000_500FT",
+          "severity": 1,
+          "label": "AIR_SPD_HI_1000_500FT_S1",
+          "phase": "APPROACH",
+          "start_row": 2152,
+          "end_row": 2178,
+          "duration_sec": 27,
+          "peak_value": 134.85,
+          "peak_unit": "kts"
+        },
+        {
+          "event": "GND_SPD_HI_TAXI",
+          "severity": 3,
+          "label": "GND_SPD_HI_TAXI_S3",
+          "phase": "TAXI IN",
+          "start_row": 2342,
+          "end_row": 2344,
+          "duration_sec": 3,
+          "peak_value": 39.13,
+          "peak_unit": "kts"
+        }
+      ],
+      "mean_confidence": 0.638,
+      "mean_stability": 0.981,
+      "dynamic_thresholds": {
+        "climb_rate": 600.0,
+        "descent_rate": 600.0,
+        "cruise_agl": 7011.0
+      }
+    },
+    {
+      "file": "log_260225_044903_WRGG.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 2318,
+      "phases": {
+        "CRUISE": 959,
+        "DESCENT": 578,
+        "CLIMB": 398,
+        "APPROACH": 87,
+        "TAXI IN": 83,
+        "INITIAL CLIMB": 51,
+        "TAXI OUT": 47,
+        "FINAL APPROACH": 41,
+        "LANDING": 31,
+        "PRE-FLIGHT": 25,
+        "TAKEOFF": 18
+      },
+      "event_occurrences": {},
+      "event_windows": [],
+      "mean_confidence": 0.62,
+      "mean_stability": 0.981,
+      "dynamic_thresholds": {
+        "climb_rate": 600.0,
+        "descent_rate": 600.0,
+        "cruise_agl": 8378.9
+      }
+    },
+    {
+      "file": "log_260225_212533_WAYY.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 84,
+      "phases": {
+        "PRE-FLIGHT": 84
+      },
+      "event_occurrences": {},
+      "event_windows": [],
+      "mean_confidence": 0.85,
+      "mean_stability": 1.0,
+      "dynamic_thresholds": {
+        "climb_rate": 400.0,
+        "descent_rate": 400.0,
+        "cruise_agl": 1000.0
+      }
+    },
+    {
+      "file": "log_260225_214226_WAYY.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 223,
+      "phases": {
+        "TAXI OUT": 138,
+        "PRE-FLIGHT": 85
+      },
+      "event_occurrences": {},
+      "event_windows": [],
+      "mean_confidence": 0.85,
+      "mean_stability": 0.98,
+      "dynamic_thresholds": {
+        "climb_rate": 400.0,
+        "descent_rate": 200.0,
+        "cruise_agl": 1000.0
+      }
+    },
+    {
+      "file": "log_260225_215514_WAYY.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 1988,
+      "phases": {
+        "CLIMB": 988,
+        "CRUISE": 301,
+        "DESCENT": 185,
+        "PRE-FLIGHT": 137,
+        "TAXI IN": 93,
+        "FINAL APPROACH": 78,
+        "TAXI OUT": 70,
+        "APPROACH": 59,
+        "TAKEOFF": 33,
+        "INITIAL CLIMB": 22,
+        "LANDING": 22
+      },
+      "event_occurrences": {
+        "PROP_SPD_TO_HI_S3": 1,
+        "GND_SPD_HI_TAXI_S3": 1
+      },
+      "event_windows": [
+        {
+          "event": "PROP_SPD_TO_HI",
+          "severity": 3,
+          "label": "PROP_SPD_TO_HI_S3",
+          "phase": "TAKEOFF",
+          "start_row": 207,
+          "end_row": 209,
+          "duration_sec": 3,
+          "peak_value": 1930.09,
+          "peak_unit": "rpm"
+        },
+        {
+          "event": "GND_SPD_HI_TAXI",
+          "severity": 3,
+          "label": "GND_SPD_HI_TAXI_S3",
+          "phase": "TAXI IN",
+          "start_row": 1895,
+          "end_row": 1896,
+          "duration_sec": 2,
+          "peak_value": 39.62,
+          "peak_unit": "kts"
+        }
+      ],
+      "mean_confidence": 0.612,
+      "mean_stability": 0.977,
+      "dynamic_thresholds": {
+        "climb_rate": 600.0,
+        "descent_rate": 600.0,
+        "cruise_agl": 4901.999999999999
+      }
+    },
+    {
+      "file": "log_260225_223656_WAYL.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 939,
+      "phases": {
+        "DESCENT": 277,
+        "CLIMB": 222,
+        "APPROACH": 129,
+        "TAXI IN": 63,
+        "LANDING": 47,
+        "PRE-FLIGHT": 42,
+        "INITIAL CLIMB": 41,
+        "TAXI OUT": 38,
+        "CRUISE": 28,
+        "TAKEOFF": 26,
+        "FINAL APPROACH": 26
+      },
+      "event_occurrences": {
+        "ROD_HI_500FT_S1": 1,
+        "GND_SPD_HI_TAXI_S3": 1
+      },
+      "event_windows": [
+        {
+          "event": "ROD_HI_500FT",
+          "severity": 1,
+          "label": "ROD_HI_500FT_S1",
+          "phase": "FINAL APPROACH",
+          "start_row": 803,
+          "end_row": 826,
+          "duration_sec": 24,
+          "peak_value": -1145.88,
+          "peak_unit": "fpm"
+        },
+        {
+          "event": "GND_SPD_HI_TAXI",
+          "severity": 3,
+          "label": "GND_SPD_HI_TAXI_S3",
+          "phase": "TAXI IN",
+          "start_row": 876,
+          "end_row": 878,
+          "duration_sec": 3,
+          "peak_value": 38.7,
+          "peak_unit": "kts"
+        }
+      ],
+      "mean_confidence": 0.654,
+      "mean_stability": 0.952,
+      "dynamic_thresholds": {
+        "climb_rate": 600.0,
+        "descent_rate": 600.0,
+        "cruise_agl": 1000.0
+      }
+    },
+    {
+      "file": "log_260225_225637_WAVO.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 2267,
+      "phases": {
+        "DESCENT": 598,
+        "CLIMB": 561,
+        "TAXI OUT": 330,
+        "CRUISE": 307,
+        "APPROACH": 164,
+        "TAXI IN": 156,
+        "FINAL APPROACH": 70,
+        "TAKEOFF": 31,
+        "LANDING": 29,
+        "INITIAL CLIMB": 21
+      },
+      "event_occurrences": {
+        "NORM_G_HI_TO_S1": 1,
+        "ROLL_HI_LIFTOFF_20FT_S1": 1
+      },
+      "event_windows": [
+        {
+          "event": "NORM_G_HI_TO",
+          "severity": 1,
+          "label": "NORM_G_HI_TO_S1",
+          "phase": "TAKEOFF",
+          "start_row": 337,
+          "end_row": 339,
+          "duration_sec": 3,
+          "peak_value": 0.34,
+          "peak_unit": "g"
+        },
+        {
+          "event": "ROLL_HI_LIFTOFF_20FT",
+          "severity": 1,
+          "label": "ROLL_HI_LIFTOFF_20FT_S1",
+          "phase": "TAKEOFF",
+          "start_row": 350,
+          "end_row": 354,
+          "duration_sec": 5,
+          "peak_value": 16.45,
+          "peak_unit": "deg"
+        }
+      ],
+      "mean_confidence": 0.641,
+      "mean_stability": 0.982,
+      "dynamic_thresholds": {
+        "climb_rate": 600.0,
+        "descent_rate": 600.0,
+        "cruise_agl": 13867.699999999999
+      }
+    },
+    {
+      "file": "log_260225_235333_WAYY.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 2445,
+      "phases": {
+        "CLIMB": 1096,
+        "CRUISE": 345,
+        "DESCENT": 324,
+        "TAXI OUT": 320,
+        "APPROACH": 137,
+        "TAXI IN": 65,
+        "PRE-FLIGHT": 41,
+        "FINAL APPROACH": 38,
+        "TAKEOFF": 32,
+        "INITIAL CLIMB": 28,
+        "LANDING": 19
+      },
+      "event_occurrences": {
+        "GND_SPD_HI_TAXI_S3": 1
+      },
+      "event_windows": [
+        {
+          "event": "GND_SPD_HI_TAXI",
+          "severity": 3,
+          "label": "GND_SPD_HI_TAXI_S3",
+          "phase": "TAXI IN",
+          "start_row": 2380,
+          "end_row": 2381,
+          "duration_sec": 2,
+          "peak_value": 37.89,
+          "peak_unit": "kts"
+        }
+      ],
+      "mean_confidence": 0.617,
+      "mean_stability": 0.961,
+      "dynamic_thresholds": {
+        "climb_rate": 600.0,
+        "descent_rate": 600.0,
+        "cruise_agl": 6000.0
+      }
+    },
+    {
+      "file": "log_260226_004050_WAYB.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 2074,
+      "phases": {
+        "DESCENT": 655,
+        "CRUISE": 508,
+        "CLIMB": 309,
+        "APPROACH": 155,
+        "TAXI OUT": 115,
+        "TAXI IN": 108,
+        "FINAL APPROACH": 89,
+        "INITIAL CLIMB": 51,
+        "PRE-FLIGHT": 41,
+        "TAKEOFF": 25,
+        "LANDING": 18
+      },
+      "event_occurrences": {
+        "NORM_G_HI_TO_S3": 1,
+        "AIR_SPD_LO_500_50FT_S1": 1
+      },
+      "event_windows": [
+        {
+          "event": "NORM_G_HI_TO",
+          "severity": 3,
+          "label": "NORM_G_HI_TO_S3",
+          "phase": "TAKEOFF",
+          "start_row": 163,
+          "end_row": 165,
+          "duration_sec": 3,
+          "peak_value": 0.59,
+          "peak_unit": "g"
+        },
+        {
+          "event": "AIR_SPD_LO_500_50FT",
+          "severity": 1,
+          "label": "AIR_SPD_LO_500_50FT_S1",
+          "phase": "FINAL APPROACH",
+          "start_row": 1858,
+          "end_row": 1863,
+          "duration_sec": 6,
+          "peak_value": 71.75,
+          "peak_unit": "kts"
+        }
+      ],
+      "mean_confidence": 0.63,
+      "mean_stability": 0.974,
+      "dynamic_thresholds": {
+        "climb_rate": 600.0,
+        "descent_rate": 600.0,
+        "cruise_agl": 12862.0
+      }
+    },
+    {
+      "file": "log_260226_014501_WAYY.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 2566,
+      "phases": {
+        "CRUISE": 880,
+        "CLIMB": 502,
+        "DESCENT": 472,
+        "TAXI OUT": 245,
+        "APPROACH": 204,
+        "TAXI IN": 74,
+        "FINAL APPROACH": 66,
+        "PRE-FLIGHT": 60,
+        "TAKEOFF": 29,
+        "INITIAL CLIMB": 19,
+        "LANDING": 15
+      },
+      "event_occurrences": {
+        "GND_SPD_HI_TAXI_S3": 1
+      },
+      "event_windows": [
+        {
+          "event": "GND_SPD_HI_TAXI",
+          "severity": 3,
+          "label": "GND_SPD_HI_TAXI_S3",
+          "phase": "TAXI IN",
+          "start_row": 2492,
+          "end_row": 2493,
+          "duration_sec": 2,
+          "peak_value": 38.41,
+          "peak_unit": "kts"
+        }
+      ],
+      "mean_confidence": 0.638,
+      "mean_stability": 0.977,
+      "dynamic_thresholds": {
+        "climb_rate": 600.0,
+        "descent_rate": 584.61,
+        "cruise_agl": 7013.0
+      }
+    },
+    {
+      "file": "log_260226_023720_WRGG.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 2549,
+      "phases": {
+        "CRUISE": 1071,
+        "DESCENT": 538,
+        "CLIMB": 391,
+        "TAXI IN": 145,
+        "TAXI OUT": 127,
+        "APPROACH": 116,
+        "PRE-FLIGHT": 52,
+        "FINAL APPROACH": 44,
+        "LANDING": 27,
+        "TAKEOFF": 22,
+        "INITIAL CLIMB": 16
+      },
+      "event_occurrences": {
+        "AIR_SPD_HI_1000_500FT_S2": 1
+      },
+      "event_windows": [
+        {
+          "event": "AIR_SPD_HI_1000_500FT",
+          "severity": 2,
+          "label": "AIR_SPD_HI_1000_500FT_S2",
+          "phase": "APPROACH",
+          "start_row": 2256,
+          "end_row": 2271,
+          "duration_sec": 16,
+          "peak_value": 142.23,
+          "peak_unit": "kts"
+        }
+      ],
+      "mean_confidence": 0.619,
+      "mean_stability": 0.976,
+      "dynamic_thresholds": {
+        "climb_rate": 600.0,
+        "descent_rate": 600.0,
+        "cruise_agl": 8370.9
+      }
+    },
+    {
+      "file": "log_260226_033702_WAYY.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 3699,
+      "phases": {
+        "CRUISE": 1118,
+        "DESCENT": 955,
+        "CLIMB": 876,
+        "TAXI OUT": 219,
+        "APPROACH": 193,
+        "TAXI IN": 85,
+        "FINAL APPROACH": 79,
+        "INITIAL CLIMB": 61,
+        "PRE-FLIGHT": 47,
+        "TAKEOFF": 36,
+        "LANDING": 30
+      },
+      "event_occurrences": {
+        "AIR_SPD_HI_50FT_S1": 1,
+        "GND_SPD_HI_TAXI_S3": 1
+      },
+      "event_windows": [
+        {
+          "event": "AIR_SPD_HI_50FT",
+          "severity": 1,
+          "label": "AIR_SPD_HI_50FT_S1",
+          "phase": "FINAL APPROACH",
+          "start_row": 3531,
+          "end_row": 3541,
+          "duration_sec": 11,
+          "peak_value": 91.74,
+          "peak_unit": "kts"
+        },
+        {
+          "event": "GND_SPD_HI_TAXI",
+          "severity": 3,
+          "label": "GND_SPD_HI_TAXI_S3",
+          "phase": "TAXI IN",
+          "start_row": 3614,
+          "end_row": 3616,
+          "duration_sec": 3,
+          "peak_value": 39.07,
+          "peak_unit": "kts"
+        }
+      ],
+      "mean_confidence": 0.602,
+      "mean_stability": 0.974,
+      "dynamic_thresholds": {
+        "climb_rate": 600.0,
+        "descent_rate": 600.0,
+        "cruise_agl": 12461.4
+      }
+    },
+    {
+      "file": "log_260226_045035_WABI.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 3244,
+      "phases": {
+        "CRUISE": 1068,
+        "DESCENT": 921,
+        "CLIMB": 565,
+        "TAXI IN": 213,
+        "APPROACH": 131,
+        "TAXI OUT": 130,
+        "PRE-FLIGHT": 83,
+        "FINAL APPROACH": 52,
+        "INITIAL CLIMB": 35,
+        "TAKEOFF": 23,
+        "LANDING": 23
+      },
+      "event_occurrences": {},
+      "event_windows": [],
+      "mean_confidence": 0.617,
+      "mean_stability": 0.982,
+      "dynamic_thresholds": {
+        "climb_rate": 600.0,
+        "descent_rate": 600.0,
+        "cruise_agl": 12952.0
+      }
+    },
+    {
+      "file": "log_260226_205831_WAYY.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 97,
+      "phases": {
+        "PRE-FLIGHT": 85,
+        "TAXI OUT": 12
+      },
+      "event_occurrences": {},
+      "event_windows": [],
+      "mean_confidence": 0.852,
+      "mean_stability": 0.954,
+      "dynamic_thresholds": {
+        "climb_rate": 400.0,
+        "descent_rate": 400.0,
+        "cruise_agl": 1000.0
+      }
+    },
+    {
+      "file": "log_260226_212250_WAYY.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 433,
+      "phases": {
+        "PRE-FLIGHT": 433
+      },
+      "event_occurrences": {},
+      "event_windows": [],
+      "mean_confidence": 0.85,
+      "mean_stability": 1.0,
+      "dynamic_thresholds": {
+        "climb_rate": 400.0,
+        "descent_rate": 200.0,
+        "cruise_agl": 1000.0
+      }
+    },
+    {
+      "file": "log_260226_214820_WAYY.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 2322,
+      "phases": {
+        "CLIMB": 1001,
+        "TAXI OUT": 416,
+        "DESCENT": 231,
+        "CRUISE": 227,
+        "PRE-FLIGHT": 119,
+        "TAXI IN": 74,
+        "APPROACH": 73,
+        "INITIAL CLIMB": 60,
+        "FINAL APPROACH": 58,
+        "LANDING": 32,
+        "TAKEOFF": 31
+      },
+      "event_occurrences": {
+        "GND_SPD_HI_TAXI_S3": 1
+      },
+      "event_windows": [
+        {
+          "event": "GND_SPD_HI_TAXI",
+          "severity": 3,
+          "label": "GND_SPD_HI_TAXI_S3",
+          "phase": "TAXI IN",
+          "start_row": 2248,
+          "end_row": 2250,
+          "duration_sec": 3,
+          "peak_value": 37.63,
+          "peak_unit": "kts"
+        }
+      ],
+      "mean_confidence": 0.648,
+      "mean_stability": 0.977,
+      "dynamic_thresholds": {
+        "climb_rate": 600.0,
+        "descent_rate": 498.4375,
+        "cruise_agl": 5927.0
+      }
+    },
+    {
+      "file": "log_260226_224503_WAYL.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 818,
+      "phases": {
+        "APPROACH": 166,
+        "DESCENT": 161,
+        "CRUISE": 154,
+        "TAXI OUT": 71,
+        "CLIMB": 65,
+        "INITIAL CLIMB": 48,
+        "FINAL APPROACH": 39,
+        "LANDING": 37,
+        "TAXI IN": 35,
+        "TAKEOFF": 26,
+        "PRE-FLIGHT": 16
+      },
+      "event_occurrences": {
+        "ROLL_HI_500FT_S1": 1,
+        "ROD_HI_500FT_S2": 1,
+        "AIR_SPD_HI_50FT_S1": 2,
+        "ROD_HI_500FT_S3": 1,
+        "GND_SPD_HI_TAXI_S3": 1
+      },
+      "event_windows": [
+        {
+          "event": "ROLL_HI_500FT",
+          "severity": 1,
+          "label": "ROLL_HI_500FT_S1",
+          "phase": "APPROACH",
+          "start_row": 699,
+          "end_row": 702,
+          "duration_sec": 4,
+          "peak_value": 37.21,
+          "peak_unit": "deg"
+        },
+        {
+          "event": "ROD_HI_500FT",
+          "severity": 2,
+          "label": "ROD_HI_500FT_S2",
+          "phase": "FINAL APPROACH",
+          "start_row": 707,
+          "end_row": 711,
+          "duration_sec": 5,
+          "peak_value": -1638.99,
+          "peak_unit": "fpm"
+        },
+        {
+          "event": "AIR_SPD_HI_50FT",
+          "severity": 1,
+          "label": "AIR_SPD_HI_50FT_S1",
+          "phase": "FINAL APPROACH",
+          "start_row": 712,
+          "end_row": 719,
+          "duration_sec": 8,
+          "peak_value": 92.97,
+          "peak_unit": "kts"
+        },
+        {
+          "event": "ROD_HI_500FT",
+          "severity": 3,
+          "label": "ROD_HI_500FT_S3",
+          "phase": "FINAL APPROACH",
+          "start_row": 712,
+          "end_row": 715,
+          "duration_sec": 4,
+          "peak_value": -1787.29,
+          "peak_unit": "fpm"
+        },
+        {
+          "event": "AIR_SPD_HI_50FT",
+          "severity": 1,
+          "label": "AIR_SPD_HI_50FT_S1",
+          "phase": "FINAL APPROACH",
+          "start_row": 733,
+          "end_row": 745,
+          "duration_sec": 13,
+          "peak_value": 93.46,
+          "peak_unit": "kts"
+        },
+        {
+          "event": "GND_SPD_HI_TAXI",
+          "severity": 3,
+          "label": "GND_SPD_HI_TAXI_S3",
+          "phase": "TAXI IN",
+          "start_row": 783,
+          "end_row": 784,
+          "duration_sec": 2,
+          "peak_value": 37.36,
+          "peak_unit": "kts"
+        }
+      ],
+      "mean_confidence": 0.683,
+      "mean_stability": 0.945,
+      "dynamic_thresholds": {
+        "climb_rate": 600.0,
+        "descent_rate": 600.0,
+        "cruise_agl": 4151.0
+      }
+    },
+    {
+      "file": "log_260226_230411_WAVO.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 2145,
+      "phases": {
+        "DESCENT": 634,
+        "CLIMB": 526,
+        "APPROACH": 363,
+        "CRUISE": 310,
+        "PRE-FLIGHT": 77,
+        "TAXI IN": 73,
+        "INITIAL CLIMB": 58,
+        "FINAL APPROACH": 47,
+        "TAKEOFF": 34,
+        "LANDING": 23
+      },
+      "event_occurrences": {
+        "ROLL_HI_LIFTOFF_20FT_S2": 1,
+        "GND_SPD_HI_TAXI_S3": 1
+      },
+      "event_windows": [
+        {
+          "event": "ROLL_HI_LIFTOFF_20FT",
+          "severity": 2,
+          "label": "ROLL_HI_LIFTOFF_20FT_S2",
+          "phase": "TAKEOFF",
+          "start_row": 98,
+          "end_row": 106,
+          "duration_sec": 9,
+          "peak_value": 26.91,
+          "peak_unit": "deg"
+        },
+        {
+          "event": "GND_SPD_HI_TAXI",
+          "severity": 3,
+          "label": "GND_SPD_HI_TAXI_S3",
+          "phase": "TAXI IN",
+          "start_row": 2072,
+          "end_row": 2084,
+          "duration_sec": 13,
+          "peak_value": 38.53,
+          "peak_unit": "kts"
+        }
+      ],
+      "mean_confidence": 0.596,
+      "mean_stability": 0.981,
+      "dynamic_thresholds": {
+        "climb_rate": 600.0,
+        "descent_rate": 600.0,
+        "cruise_agl": 14378.6
+      }
+    },
+    {
+      "file": "log_260226_234926_WAYY.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 2358,
+      "phases": {
+        "CLIMB": 1020,
+        "TAXI OUT": 349,
+        "CRUISE": 314,
+        "DESCENT": 289,
+        "APPROACH": 148,
+        "FINAL APPROACH": 59,
+        "INITIAL CLIMB": 58,
+        "PRE-FLIGHT": 44,
+        "TAKEOFF": 33,
+        "TAXI IN": 24,
+        "LANDING": 20
+      },
+      "event_occurrences": {
+        "ROLL_HI_500FT_S1": 1,
+        "AIR_SPD_HI_50FT_S1": 1
+      },
+      "event_windows": [
+        {
+          "event": "ROLL_HI_500FT",
+          "severity": 1,
+          "label": "ROLL_HI_500FT_S1",
+          "phase": "APPROACH",
+          "start_row": 2233,
+          "end_row": 2235,
+          "duration_sec": 3,
+          "peak_value": 36.86,
+          "peak_unit": "deg"
+        },
+        {
+          "event": "AIR_SPD_HI_50FT",
+          "severity": 1,
+          "label": "AIR_SPD_HI_50FT_S1",
+          "phase": "FINAL APPROACH",
+          "start_row": 2255,
+          "end_row": 2262,
+          "duration_sec": 8,
+          "peak_value": 96.07,
+          "peak_unit": "kts"
+        }
+      ],
+      "mean_confidence": 0.606,
+      "mean_stability": 0.958,
+      "dynamic_thresholds": {
+        "climb_rate": 600.0,
+        "descent_rate": 600.0,
+        "cruise_agl": 12553.8
+      }
+    },
+    {
+      "file": "log_260227_003627_WAYB.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 1953,
+      "phases": {
+        "DESCENT": 547,
+        "TAXI OUT": 426,
+        "CLIMB": 424,
+        "CRUISE": 179,
+        "TAKEOFF": 113,
+        "APPROACH": 109,
+        "FINAL APPROACH": 64,
+        "INITIAL CLIMB": 31,
+        "TAXI IN": 31,
+        "LANDING": 29
+      },
+      "event_occurrences": {
+        "NORM_G_HI_TO_S3": 1,
+        "NORM_G_HI_TO_S1": 1
+      },
+      "event_windows": [
+        {
+          "event": "NORM_G_HI_TO",
+          "severity": 3,
+          "label": "NORM_G_HI_TO_S3",
+          "phase": "TAKEOFF",
+          "start_row": 440,
+          "end_row": 442,
+          "duration_sec": 3,
+          "peak_value": 0.53,
+          "peak_unit": "g"
+        },
+        {
+          "event": "NORM_G_HI_TO",
+          "severity": 1,
+          "label": "NORM_G_HI_TO_S1",
+          "phase": "TAKEOFF",
+          "start_row": 452,
+          "end_row": 454,
+          "duration_sec": 3,
+          "peak_value": 0.33,
+          "peak_unit": "g"
+        }
+      ],
+      "mean_confidence": 0.648,
+      "mean_stability": 0.977,
+      "dynamic_thresholds": {
+        "climb_rate": 600.0,
+        "descent_rate": 600.0,
+        "cruise_agl": 14367.0
+      }
+    },
+    {
+      "file": "log_260227_212250_WAYY.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 340,
+      "phases": {
+        "PRE-FLIGHT": 340
+      },
+      "event_occurrences": {},
+      "event_windows": [],
+      "mean_confidence": 0.85,
+      "mean_stability": 1.0,
+      "dynamic_thresholds": {
+        "climb_rate": 400.0,
+        "descent_rate": 200.0,
+        "cruise_agl": 1000.0
+      }
+    },
+    {
+      "file": "log_260227_234301_WAYY.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 134,
+      "phases": {
+        "PRE-FLIGHT": 75,
+        "TAXI OUT": 59
+      },
+      "event_occurrences": {},
+      "event_windows": [],
+      "mean_confidence": 0.851,
+      "mean_stability": 0.966,
+      "dynamic_thresholds": {
+        "climb_rate": 400.0,
+        "descent_rate": 200.0,
+        "cruise_agl": 1000.0
+      }
+    },
+    {
+      "file": "log_260227_234856_WAYY.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 2670,
+      "phases": {
+        "CLIMB": 1065,
+        "TAXI OUT": 485,
+        "DESCENT": 335,
+        "CRUISE": 261,
+        "APPROACH": 155,
+        "TAXI IN": 154,
+        "PRE-FLIGHT": 88,
+        "FINAL APPROACH": 45,
+        "TAKEOFF": 34,
+        "INITIAL CLIMB": 31,
+        "LANDING": 17
+      },
+      "event_occurrences": {
+        "GND_SPD_HI_TAXI_S3": 1
+      },
+      "event_windows": [
+        {
+          "event": "GND_SPD_HI_TAXI",
+          "severity": 3,
+          "label": "GND_SPD_HI_TAXI_S3",
+          "phase": "TAXI IN",
+          "start_row": 2516,
+          "end_row": 2517,
+          "duration_sec": 2,
+          "peak_value": 38.25,
+          "peak_unit": "kts"
+        }
+      ],
+      "mean_confidence": 0.647,
+      "mean_stability": 0.98,
+      "dynamic_thresholds": {
+        "climb_rate": 600.0,
+        "descent_rate": 600.0,
+        "cruise_agl": 12381.2
+      }
+    },
+    {
+      "file": "log_260228_004009_WAYB.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 1971,
+      "phases": {
+        "DESCENT": 734,
+        "CRUISE": 337,
+        "CLIMB": 304,
+        "TAXI IN": 173,
+        "APPROACH": 139,
+        "TAXI OUT": 110,
+        "FINAL APPROACH": 56,
+        "PRE-FLIGHT": 47,
+        "LANDING": 28,
+        "TAKEOFF": 24,
+        "INITIAL CLIMB": 19
+      },
+      "event_occurrences": {
+        "NORM_G_HI_TO_S3": 1
+      },
+      "event_windows": [
+        {
+          "event": "NORM_G_HI_TO",
+          "severity": 3,
+          "label": "NORM_G_HI_TO_S3",
+          "phase": "TAKEOFF",
+          "start_row": 166,
+          "end_row": 168,
+          "duration_sec": 3,
+          "peak_value": 0.42,
+          "peak_unit": "g"
+        }
+      ],
+      "mean_confidence": 0.635,
+      "mean_stability": 0.973,
+      "dynamic_thresholds": {
+        "climb_rate": 600.0,
+        "descent_rate": 600.0,
+        "cruise_agl": 5575.0
+      }
+    },
+    {
+      "file": "log_260228_012832_WAYY.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 2629,
+      "phases": {
+        "CLIMB": 1053,
+        "CRUISE": 591,
+        "DESCENT": 351,
+        "TAXI OUT": 197,
+        "TAXI IN": 123,
+        "PRE-FLIGHT": 76,
+        "APPROACH": 62,
+        "LANDING": 59,
+        "FINAL APPROACH": 51,
+        "TAKEOFF": 36,
+        "INITIAL CLIMB": 30
+      },
+      "event_occurrences": {
+        "UNSTABLE_APP_S2": 1,
+        "AIR_SPD_HI_50FT_S3": 1,
+        "AIR_SPD_HI_500_50FT_S1": 1,
+        "AIR_SPD_HI_50FT_S2": 1,
+        "GND_SPD_HI_TAXI_S3": 1
+      },
+      "event_windows": [
+        {
+          "event": "UNSTABLE_APP",
+          "severity": 2,
+          "label": "UNSTABLE_APP_S2",
+          "phase": "APPROACH",
+          "start_row": 2353,
+          "end_row": 2361,
+          "duration_sec": 9,
+          "peak_value": null,
+          "peak_unit": null
+        },
+        {
+          "event": "AIR_SPD_HI_50FT",
+          "severity": 3,
+          "label": "AIR_SPD_HI_50FT_S3",
+          "phase": "FINAL APPROACH",
+          "start_row": 2390,
+          "end_row": 2416,
+          "duration_sec": 27,
+          "peak_value": 106.54,
+          "peak_unit": "kts"
+        },
+        {
+          "event": "AIR_SPD_HI_500_50FT",
+          "severity": 1,
+          "label": "AIR_SPD_HI_500_50FT_S1",
+          "phase": "FINAL APPROACH",
+          "start_row": 2398,
+          "end_row": 2409,
+          "duration_sec": 12,
+          "peak_value": 106.54,
+          "peak_unit": "kts"
+        },
+        {
+          "event": "AIR_SPD_HI_50FT",
+          "severity": 2,
+          "label": "AIR_SPD_HI_50FT_S2",
+          "phase": "FINAL APPROACH",
+          "start_row": 2417,
+          "end_row": 2421,
+          "duration_sec": 5,
+          "peak_value": 99.78,
+          "peak_unit": "kts"
+        },
+        {
+          "event": "GND_SPD_HI_TAXI",
+          "severity": 3,
+          "label": "GND_SPD_HI_TAXI_S3",
+          "phase": "TAXI IN",
+          "start_row": 2506,
+          "end_row": 2509,
+          "duration_sec": 4,
+          "peak_value": 39.25,
+          "peak_unit": "kts"
+        }
+      ],
+      "mean_confidence": 0.622,
+      "mean_stability": 0.976,
+      "dynamic_thresholds": {
+        "climb_rate": 600.0,
+        "descent_rate": 600.0,
+        "cruise_agl": 6886.0
+      }
+    },
+    {
+      "file": "log_260228_022047_WAVA.csv",
+      "aircraft_type": "Cessna 208B Grand Caravan EX",
+      "status": "success",
+      "rows": 2495,
+      "phases": {
+        "DESCENT": 1070,
+        "CLIMB": 484,
+        "CRUISE": 459,
+        "TAXI IN": 107,
+        "APPROACH": 102,
+        "TAXI OUT": 77,
+        "PRE-FLIGHT": 60,
+        "FINAL APPROACH": 58,
+        "LANDING": 29,
+        "TAKEOFF": 28,
+        "INITIAL CLIMB": 21
+      },
+      "event_occurrences": {},
+      "event_windows": [],
+      "mean_confidence": 0.592,
+      "mean_stability": 0.98,
+      "dynamic_thresholds": {
+        "climb_rate": 600.0,
+        "descent_rate": 600.0,
+        "cruise_agl": 12386.5
+      }
+    }
+  ]
+}
