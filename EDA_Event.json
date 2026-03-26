@@ -1,0 +1,1254 @@
+[
+    {
+        "code": "GSG001",
+        "abv": "Gnd spd hi taxi straight",
+        "name": "Ground speed high taxi straight",
+        "desc": "High taxi speeds may increase risk of ground incidents and cause excessive brake wear [1].",
+        "reff": "All",
+        "severity": {
+            "1": [],
+            "2": [],
+            "3": [
+                {
+                    "field": "GndSpd",
+                    "value": "32",
+                    "method": "gte",
+                    "min_duration": "0"
+                }
+            ]
+        },
+        "conditions": {
+            "phase": ["TAXI OUT", "TAXI IN"],
+            "invalid": [
+                {
+                    "field": "PHASE_FLIGHT",
+                    "method": "neq",
+                    "value": ["TAXI OUT", "TAXI IN"],
+                    "reason": "Event is only applicable during the TAXI phase"
+                },
+                {
+                    "field": "IsGearGround",
+                    "method": "eq",
+                    "value": ["1"],
+                    "reason": "Invalid if detected above runway"
+                }
+            ]
+        }
+    },
+    {
+        "code": "GSG001",
+        "abv": "Gnd spd hi taxi straight (WAYY)",
+        "name": "Ground speed high taxi straight at WAYY",
+        "desc": "Specific ground speed limit for Taxi in/out at Mozes Kilangin Airport (WAYY) [1].",
+        "reff": "All",
+        "severity": {
+            "1": [],
+            "2": [],
+            "3": [
+                {
+                    "field": "GndSpd",
+                    "value": "50",
+                    "method": "gte",
+                    "min_duration": "0"
+                }
+            ]
+        },
+        "conditions": {
+            "phase": ["TAXI OUT", "TAXI IN"],
+            "icao": "WAYY",
+            "invalid": [
+                {
+                    "field": "IsGearGround",
+                    "method": "eq",
+                    "value": ["1"],
+                    "reason": "Invalid if detected above runway"
+                }
+            ]
+        }
+    },
+    {
+        "code": "GET050",
+        "abv": "Eng gas temp(start) hi",
+        "name": "Engine gas temperature (start) high",
+        "desc": "This event triggers if the recorded gas temperature exceeds the threshold during engine start. Foranalysis purposes, the engine start is defined as the first time and engine is started and remains on.",
+        "reff": "All",
+        "severity": {
+            "1": [],
+            "2": [],
+            "3": [
+                {
+                    "field": "E1 ITT",
+                    "value": "900.0",
+                    "method": "gte",
+                    "min_duration": "0"
+                }
+            ]
+        },
+        "conditions": {
+            "phase": ["PRE-FLIGHT"]
+        }
+    },
+    {
+        "code": "TET000",
+        "abv": "Eng gas temp (t/o) hi",
+        "name": "Engine gas temperature (takeoff) high (Variant B)",
+        "desc": "Triggers if gas temperature exceeds threshold during the 5-minute takeoff period [2].",
+        "reff": "B",
+        "severity": {
+            "1": [],
+            "2": [],
+            "3": [
+                {
+                    "field": "E1 ITT",
+                    "value": "805.0",
+                    "method": "gte",
+                    "min_duration": "0"
+                }
+            ]
+        },
+        "conditions": {
+            "phase": ["TAKEOFF","INITIAL CLIMB"],
+            "timer": "300s"
+        }
+    },
+    {
+        "code": "TET000",
+        "abv": "Eng gas temp (t/o) hi",
+        "name": "Engine gas temperature (takeoff) high (Variant EX)",
+        "desc": "Triggers if gas temperature exceeds threshold during the 5-minute takeoff period [2].",
+        "reff": "EX",
+        "severity": {
+            "1": [],
+            "2": [],
+            "3": [
+                {
+                    "field": "E1 ITT",
+                    "value": "850.0",
+                    "method": "gte",
+                    "min_duration": "0"
+                }
+            ]
+        },
+        "conditions": {
+            "phase": ["TAKEOFF","INITIAL CLIMB"],
+            "timer": "300s"
+        }
+    },
+    {
+        "code": "GET070",
+        "abv": "Eng gas temp (c) climb",
+        "name": "Engine gas temperature (continuos) on climb",
+        "desc": "Triggered if gas temperature (ITT) exceeds threshold during climb phase.",
+        "reff": "B",
+        "severity": {
+            "1": [],
+            "2": [],
+            "3": [
+                {
+                    "field": "E1 ITT",
+                    "value": "765.0",
+                    "method": "gte",
+                    "min_duration": "180"
+                }
+            ]
+        },
+        "conditions": {
+            "phase": ["INITIAL CLIMB","CLIMB"]
+        }
+    },
+    {
+        "code": "GET070",
+        "abv": "Eng gas temp (c) climb",
+        "name": "Engine gas temperature (continuos) on climb",
+        "desc": "Triggered if gas temperature (ITT) exceeds threshold during climb phase.",
+        "reff": "EX",
+        "severity": {
+            "1": [],
+            "2": [],
+            "3": [
+                {
+                    "field": "E1 ITT",
+                    "value": "825.0",
+                    "method": "gte",
+                    "min_duration": "180"
+                }
+            ]
+        },
+        "conditions": {
+            "phase": ["INITIAL CLIMB","CLIMB"]
+        }
+    },
+    {
+        "code": "GET080",
+        "abv": "Eng gas temp (c) cruise",
+        "name": "Engine gas temperature (continuos) on cruise",
+        "desc": "Triggered if gas temperature exceeds threshold during cruise phase.",
+        "reff": "B",
+        "severity": {
+            "1": [],
+            "2": [],
+            "3": [
+                {
+                    "field": "E1 ITT",
+                    "value": "740.0",
+                    "method": "gte",
+                    "min_duration": "0"
+                }
+            ]
+        },
+        "conditions": {
+            "phase": ["CRUISE"]
+        }
+    },
+    {
+        "code": "GET080",
+        "abv": "Eng gas temp (c) cruise",
+        "name": "Engine gas temperature (continuos) on cruise",
+        "desc": "Triggered if gas temperature exceeds threshold during cruise phase.",
+        "reff": "EX",
+        "severity": {
+            "1": [],
+            "2": [],
+            "3": [
+                {
+                    "field": "E1 ITT",
+                    "value": "805.0",
+                    "method": "gte",
+                    "min_duration": "0"
+                }
+            ]
+        },
+        "conditions": {
+            "phase":  ["CRUISE"]
+        }
+    },
+    {
+        "code": "FEN400",
+        "abv": "Eng N1 hi",
+        "name": "Engine N1 high",
+        "desc": "Exceedance of N1 limits overstresses the engine and reduces life span.",
+        "reff": "B",
+        "severity": {
+            "1": [],
+            "2": [],
+            "3": [
+                {
+                    "field": "E1 NG",
+                    "value": "101.6",
+                    "method": "gte",
+                    "min_duration": "0"
+                }
+            ]
+        },
+        "conditions": {}
+    },
+    {
+        "code": "FEN400",
+        "abv": "Eng N1 hi",
+        "name": "Engine N1 high",
+        "desc": "Exceedance of N1 limits overstresses the engine and reduces life span.",
+        "reff": "EX",
+        "severity": {
+            "1": [],
+            "2": [],
+            "3": [
+                {
+                    "field": "E1 NG",
+                    "value": "103.7",
+                    "method": "gte",
+                    "min_duration": "0"
+                }
+            ]
+        },
+        "conditions": {}
+    },
+    {
+        "code": "FEQ200",
+        "abv": "Eng gnd idle",
+        "name": "Engine ground idle",
+        "desc": "Event triggered before engine shutdown.",
+        "reff": "All",
+        "severity": {
+            "1": [],
+            "2": [],
+            "3": [
+                {
+                    "field": "E1 NG",
+                    "value": "59",
+                    "method": "lte",
+                    "min_duration": "0"
+                }
+            ]
+        },
+        "conditions": {
+            "phase": ["TAXI IN"]
+        }
+    },
+    {
+        "code": "TEP000",
+        "abv": "Prop spd t/o hi",
+        "name": "Proppeler speed (takeoff) high",
+        "desc": "NP exceeding threshold during takeoff poses significant stress risks.",
+        "reff": "All",
+        "severity": {
+            "1": [],
+            "2": [],
+            "3": [
+                {
+                    "field": "E1 NP",
+                    "value": "1910",
+                    "method": "gte",
+                    "min_duration": "3"
+                }
+            ]
+        },
+        "conditions": {
+            "phase": ["TAKEOFF"]
+        }
+    },
+    {
+        "code": "TEQ002",
+        "abv": "Eng torq t/o hi",
+        "name": "Engine torque (takeoff) high",
+        "desc": "Exceeding maximum takeoff torque limits can lead to engine damage.",
+        "reff": "B",
+        "severity": {
+            "1": [],
+            "2": [],
+            "3": [
+                {
+                    "field": "E1 Torq",
+                    "value": "1865",
+                    "method": "gte",
+                    "min_duration": "0"
+                }
+            ]
+        },
+        "conditions": {
+            "phase": ["TAKEOFF"]
+        }
+    },
+    {
+        "code": "TEQ002",
+        "abv": "Eng torq t/o hi",
+        "name": "Engine torque (takeoff) high",
+        "desc": "Exceeding maximum takeoff torque limits can lead to engine damage.",
+        "reff": "EX",
+        "severity": {
+            "1": [],
+            "2": [],
+            "3": [
+                {
+                    "field": "E1 Torq",
+                    "value": "2397",
+                    "method": "gte",
+                    "min_duration": "0"
+                }
+            ]
+        },
+        "conditions": {
+            "phase": ["TAKEOFF"]
+        }
+    },
+    {
+        "code": "FEX200",
+        "abv": "Fuel qty imb",
+        "name": "Fuel quantity imbalance",
+        "desc": "Maximum difference between Left and Right wing tank fuel quantities.",
+        "reff": "All",
+        "severity": {
+            "1": [],
+            "2": [],
+            "3": [
+                {
+                    "field": "expression", 
+                    "expression": "abs(FQtyR - FQtyL)",
+                    "value": "200",
+                    "method": "gte",
+                    "min_duration": "200"
+                }
+            ]
+        },
+        "conditions": {}
+    },
+    {
+        "code": "TGN000",
+        "abv": "Norm g hi t/o",
+        "name": "Acceleration (normal) high during takeoff",
+        "desc": "High normal acceleration during takeoff may indicate poor handling or tail strike risk.",
+        "reff": "All",
+        "severity": {
+            "1": [
+                {
+                    "field": "NormAc",
+                    "value": "1.30",
+                    "method": "gte",
+                    "min_duration": "0"
+                }
+            ],
+            "2": [
+                {
+                    "field": "NormAc",
+                    "value": "1.35",
+                    "method": "gte",
+                    "min_duration": "0"
+                }
+            ],
+            "3": [
+                {
+                    "field": "NormAc",
+                    "value": "1.40",
+                    "method": "gte",
+                    "min_duration": "0"
+                }
+            ]
+        },
+        "conditions": {
+            "phase": ["TAKEOFF"]
+        }
+    },
+    {
+        "code": "LGN000",
+        "abv": "Norm g hi tdwn (hard ldg)",
+        "name": "Acceleration (normal) high at touchdown (hard landing)",
+        "desc": "High normal acceleration at touchdown indicates a hard landing and risk of structural damage.",
+        "reff": "All",
+        "severity": {
+            "1": [],
+            "2": [
+                {
+                    "field": "NormAc",
+                    "value": "1.70",
+                    "method": "gte",
+                    "min_duration": "0"
+                }
+            ],
+            "3": [
+                {
+                    "field": "NormAc",
+                    "value": "1.90",
+                    "method": "gte",
+                    "min_duration": "0"
+                }
+            ]
+        },
+        "conditions": {
+            "phase": ["LANDING"]
+        }
+    },
+    {
+        "code": "TPA029",
+        "abv": "Pitch hi t/o",
+        "name": "Pitch high at takeoff",
+        "desc": "Excessive pitch during takeoff risks tail strikes and reduced obstacle clearance.",
+        "reff": "All",
+        "severity": {
+            "1": [],
+            "2": [
+                {
+                    "field": "Pitch",
+                    "value": "13.5",
+                    "method": "gte",
+                    "min_duration": "0"
+                }
+            ],
+            "3": [
+                {
+                    "field": "Pitch",
+                    "value": "15",
+                    "method": "gte",
+                    "min_duration": "0"
+                }
+            ]
+        },
+        "conditions": {
+            "phase": ["TAKEOFF"]
+        }
+    },
+    {
+        "code": "TAA005",
+        "abv": "Hgt loss 20-400ft",
+        "name": "Height loss 20-400ft",
+        "desc": "Loss of height at low altitude reduces obstacle clearance and may indicate turbulence, control abnormalities or engine failure.",
+        "reff": "All",
+        "severity": {
+            "1": [
+                {
+                    "field": "agl_loss",
+                    "value": "50",
+                    "method": "gte",
+                    "min_duration": "0"
+                }
+            ],
+            "2": [
+                {
+                    "field": "agl_loss",
+                    "value": "75",
+                    "method": "gte",
+                    "min_duration": "0"
+                }
+            ],
+            "3": [
+                {
+                    "field": "agl_loss",
+                    "value": "100",
+                    "method": "gte",
+                    "min_duration": "0"
+                }
+            ]
+        },
+        "conditions": {
+            "field": "AGL",
+            "min": 20,
+            "max": 400
+        }
+    },
+    {
+        "code": "TAA006",
+        "abv": "Hgt loss 400-1000ft",
+        "name": "Height loss 400-1000ft",
+        "desc": "Significant height loss between 400ft and 1000ft AGL during initial climb.",
+        "reff": "All",
+        "severity": {
+            "1": [
+                {
+                    "field": "agl_loss",
+                    "value": "100",
+                    "method": "gte",
+                    "min_duration": "0"
+                }
+            ],
+            "2": [
+                {
+                    "field": "agl_loss",
+                    "value": "150",
+                    "method": "gte",
+                    "min_duration": "0"
+                }
+            ],
+            "3": [
+                {
+                    "field": "agl_loss",
+                    "value": "200",
+                    "method": "gte",
+                    "min_duration": "0"
+                }
+            ]
+        },
+        "conditions": {
+            "field": "AGL",
+                "min": 400,
+                "max": 1000
+        }
+    },
+    {
+        "code": "TXX001",
+        "abv": "AP engaged early t/o",
+        "name": "Autopilot engaged early during takeoff",
+        "desc": "Measures the altitude at which the Autopilot is first engaged after lift-off.",
+        "reff": "All",
+        "severity": {
+            "1": [
+                {
+                    "field": "AGL",
+                    "value": "900",
+                    "method": "lte",
+                    "min_duration": "0"
+                },
+                {
+                    "field": "AfcsOn",
+                    "value": "1",
+                    "method": "eq",
+                    "min_duration": "0"
+                }
+            ],
+            "2": [
+                {
+                    "field": "AGL",
+                    "value": "500",
+                    "method": "lte",
+                    "min_duration": "0"
+                },
+                {
+                    "field": "AfcsOn",
+                    "value": "1",
+                    "method": "eq",
+                    "min_duration": "0"
+                }
+            ],
+            "3": [
+                {
+                    "field": "AGL",
+                    "value": "100",
+                    "method": "lte",
+                    "min_duration": "0"
+                },
+                {
+                    "field": "AfcsOn",
+                    "value": "1",
+                    "method": "eq",
+                    "min_duration": "0"
+                }
+            ]
+        },
+        "conditions": {
+            "phase": ["INITIAL CLIMB","TAKEOFF"]
+        }
+    },
+    {
+        "code": "TXX000",
+        "abv": "RTO (hi spd)",
+        "name": "Rejected takeoff (high speed)",
+        "desc": "Measures the maximum Groundspeed during a rejected takeoff.",
+        "reff": "All",
+        "severity": {
+            "1": [],
+            "2": [],
+            "3": [
+                {
+                    "field": "GndSpd",
+                    "value": "70",
+                    "method": "gte",
+                    "min_duration": "0"
+                }
+            ]
+        },
+        "conditions": {
+            "phase": "TAKEOFF"
+        }
+    },
+    {
+        "code": "TXX002",
+        "abv": "RTO (lo spd)",
+        "name": "Rejected takeoff (low speed)",
+        "desc": "Measures the minimum Groundspeed during a rejected takeoff.",
+        "reff": "All",
+        "severity": {
+            "1": [],
+            "2": [],
+            "3": [
+                {
+                    "field": "GndSpd",
+                    "value": "40",
+                    "method": "gte",
+                    "min_duration": "0"
+                }
+            ]
+        },
+        "conditions": {
+            "phase": "TAKEOFF"
+        }
+    },
+    {
+        "code": "TRA000",
+        "abv": "Roll hi liftoff 20ft",
+        "name": "Roll high liftoff to 20ft",
+        "desc": "High roll angles after takeoff may indicate directional control problems or engine failure.",
+        "reff": "All",
+        "severity": {
+            "1": [
+                {
+                    "field": "Roll",
+                    "value": "15",
+                    "method": "gte",
+                    "min_duration": "3"
+                }
+            ],
+            "2": [
+                {
+                    "field": "Roll",
+                    "value": "20",
+                    "method": "gte",
+                    "min_duration": "3"
+                }
+            ],
+            "3": [
+                {
+                    "field": "Roll",
+                    "value": "30",
+                    "method": "gte",
+                    "min_duration": "3"
+                }
+            ]
+        },
+        "conditions": {
+            "field": "AGL",
+            "min": 0,
+            "max": 20
+        }
+    },
+    {
+        "code": "TRA005",
+        "abv": "Roll hi 20-100ft",
+        "name": "Roll high 20-100ft",
+        "desc": "Excessive bank angles at low altitude after takeoff.",
+        "reff": "All",
+        "severity": {
+            "1": [
+                {
+                    "field": "Roll",
+                    "value": "15",
+                    "method": "gte",
+                    "min_duration": "3"
+                }
+            ],
+            "2": [
+                {
+                    "field": "Roll",
+                    "value": "20",
+                    "method": "gte",
+                    "min_duration": "3"
+                }
+            ],
+            "3": [
+                {
+                    "field": "Roll",
+                    "value": "30",
+                    "method": "gte",
+                    "min_duration": "3"
+                }
+            ]
+        },
+        "conditions": {
+            "field": "AGL",
+            "min": 20,
+            "max": 100
+        }
+    },
+    {
+        "code": "TRA006",
+        "abv": "Roll hi 100-500ft",
+        "name": "Roll high 100-500ft",
+        "desc": "Excessive roll angles detected between 100ft and 500ft AGL.",
+        "reff": "All",
+        "severity": {
+            "1": [
+                {
+                    "field": "Roll",
+                    "value": "31",
+                    "method": "gte",
+                    "min_duration": "3"
+                }
+            ],
+            "2": [
+                {
+                    "field": "Roll",
+                    "value": "41",
+                    "method": "gte",
+                    "min_duration": "3"
+                }
+            ],
+            "3": [
+                {
+                    "field": "Roll",
+                    "value": "46",
+                    "method": "gte",
+                    "min_duration": "3"
+                }
+            ]
+        },
+        "conditions": {
+            "field": "AGL",
+            "min": 100,
+            "max": 500
+        }
+    },
+    {
+        "code": "FRA003",
+        "abv": "Roll hi > 500ft",
+        "name": "Roll high above 500ft",
+        "desc": "Possible aircraft system malfunctions or pilot over-control above 500ft.",
+        "reff": "All",
+        "severity": {
+            "1": [
+                {
+                    "field": "Roll",
+                    "value": "35",
+                    "method": "gte",
+                    "min_duration": "3"
+                }
+            ],
+            "2": [
+                {
+                    "field": "Roll",
+                    "value": "41",
+                    "method": "gte",
+                    "min_duration": "3"
+                }
+            ],
+            "3": [
+                {
+                    "field": "Roll",
+                    "value": "46",
+                    "method": "gte",
+                    "min_duration": "3"
+                }
+            ]
+        },
+        "conditions": {
+            "field": "AGL",
+            "min": 500
+        }
+    },
+    {
+        "code": "FAS000",
+        "abv": "Max Alt Excd",
+        "name": "Maximum operating altitude exceeded",
+        "desc": "Flight in high pressure altitude conditions may severely degrade aircraft performance.",
+        "reff": "All",
+        "severity": {
+            "1": [],
+            "2": [
+                {
+                    "field": ["AltInd", "AltB"],
+                    "value": "15000",
+                    "method": "gte",
+                    "min_duration": "5"
+                }
+            ],
+            "3": [
+                {
+                    "field": ["AltInd", "AltB"],
+                    "value": "25000",
+                    "method": "gte",
+                    "min_duration": "5"
+                }
+            ]
+        },
+        "conditions": {}
+    },
+    {
+        "code": "FSA999",
+        "abv": "Air spd (VMO) excd",
+        "name": "Airspeed VMO exceedance",
+        "desc": "Flying above the maximum operating airspeed can exceed design limits with significant effect on handling.",
+        "reff": "All",
+        "severity": {
+            "1": [
+                {
+                    "field": "IAS",
+                    "value": "171",
+                    "method": "gte",
+                    "min_duration": "5"
+                }
+            ],
+            "2": [
+                {
+                    "field": "IAS",
+                    "value": "173",
+                    "method": "gte",
+                    "min_duration": "5"
+                }
+            ],
+            "3": [
+                {
+                    "field": "IAS",
+                    "value": "175",
+                    "method": "gte",
+                    "min_duration": "5"
+                }
+            ]
+        },
+        "conditions": {}
+    },
+    {
+        "code": "LXX100",
+        "abv": "Unstable app",
+        "name": "Unstable approach",
+        "desc": "Assessment of aircraft stability during approach. Result is 'Unstable' if limits for LSA505, LSA512, or LVD030 are exceeded.",
+        "reff": "All",
+        "severity": {
+            "1": [],
+            "2": [
+                {
+                    "field": "AGL",
+                    "value": "1000",
+                    "method": "lte",
+                    "min_duration": "3"
+                }
+            ],
+            "3": [
+                {
+                    "field": "AGL",
+                    "value": "500",
+                    "method": "lte",
+                    "min_duration": "3"
+                }
+            ]
+        },
+        "conditions": {
+            "phase": ["APPROACH","FINAL APPROACH"],
+            "component_events": ["LSA505","LSA512","LVD030"]
+        }
+    },
+    {
+        "code": "LVD030",
+        "abv": "RoD hi < 500ft",
+        "name": "Rate of descent high below 500ft",
+        "desc": "Excessive descent rates at low heights reduce obstacle clearance and increase hard landing risk.",
+        "reff": "All",
+        "severity": {
+            "1": [
+                {
+                    "field": "VSpd",
+                    "value": "-1000",
+                    "method": "gte",
+                    "min_duration": "3"
+                }
+            ],
+            "2": [
+                {
+                    "field": "VSpd",
+                    "value": "-1300",
+                    "method": "gte",
+                    "min_duration": "3"
+                }
+            ],
+            "3": [
+                {
+                    "field": "VSpd",
+                    "value": "-1700",
+                    "method": "gte",
+                    "min_duration": "3"
+                }
+            ]
+        },
+        "conditions": {
+            "field": "AGL",
+            "min": 0,
+            "max": 500
+        }
+    },
+    {
+        "code": "LSA505",
+        "abv": "Air Spd hi 1000-500ft",
+        "name": "Airspeed high 1000-500ft",
+        "desc": "High airspeed during intermediate approach may lead to late configuration and high speed at touchdown.",
+        "reff": "All",
+        "severity": {
+            "1": [
+                {
+                    "field": "IAS",
+                    "value": "125",
+                    "method": "gte",
+                    "min_duration": "15"
+                }
+            ],
+            "2": [
+                {
+                    "field": "IAS",
+                    "value": "135",
+                    "method": "gte",
+                    "min_duration": "15"
+                }
+            ],
+            "3": [
+                {
+                    "field": "IAS",
+                    "value": "155",
+                    "method": "gte",
+                    "min_duration": "15"
+                }
+            ]
+        },
+        "conditions": {
+            "field": "AGL",
+            "min": 500,
+            "max": 1000
+        }
+    },
+    {
+        "code": "LSA512",
+        "abv": "Air Spd hi 500-50ft",
+        "name": "Airspeed high 500-50ft",
+        "desc": "High airspeed during final approach stage risks unstable landing and long flare.",
+        "reff": "All",
+        "severity": {
+            "1": [
+                {
+                    "field": "IAS",
+                    "value": "105",
+                    "method": "gte",
+                    "min_duration": "5"
+                }
+            ],
+            "2": [
+                {
+                    "field": "IAS",
+                    "value": "110",
+                    "method": "gte",
+                    "min_duration": "5"
+                }
+            ],
+            "3": [
+                {
+                    "field": "IAS",
+                    "value": "115",
+                    "method": "gte",
+                    "min_duration": "5"
+                }
+            ]
+        },
+        "conditions": {
+            "field": "AGL",
+            "min": 50,
+            "max": 500
+        }
+    },
+    {
+        "code": "LSA513",
+        "abv": "Air Spd hi < 50ft",
+        "name": "Airspeed high below 50 ft",
+        "desc": "Detects high airspeed between 50 ft RA and touchdown. Accounts for wind variations.",
+        "reff": "All",
+        "severity": {
+            "1": [
+                {
+                    "field": "IAS",
+                    "value": "90",
+                    "method": "gte",
+                    "min_duration": "5"
+                }
+            ],
+            "2": [
+                {
+                    "field": "IAS",
+                    "value": "95",
+                    "method": "gte",
+                    "min_duration": "5"
+                }
+            ],
+            "3": [
+                {
+                    "field": "IAS",
+                    "value": "100",
+                    "method": "gte",
+                    "min_duration": "5"
+                }
+            ]
+        },
+        "conditions": {
+            "field": "AGL",
+            "min": 0,
+            "max": 50
+        }
+    },
+    {
+        "code": "LSA514",
+        "abv": "Air spd hi ldg",
+        "name": "Airspeed high at Landing",
+        "desc": "High airspeed at landing can result in long flare and runway overrun risks.",
+        "reff": "All",
+        "severity": {
+            "1": [
+                {
+                    "field": "IAS",
+                    "value": "90",
+                    "method": "gte",
+                    "min_duration": "5"
+                }
+            ],
+            "2": [
+                {
+                    "field": "IAS",
+                    "value": "95",
+                    "method": "gte",
+                    "min_duration": "5"
+                }
+            ],
+            "3": [
+                {
+                    "field": "IAS",
+                    "value": "100",
+                    "method": "gte",
+                    "min_duration": "5"
+                }
+            ]
+        },
+        "conditions": {
+            "phase": ["LANDING"]
+        }
+    },
+    {
+        "code": "TSA260",
+        "abv": "Air spd lo liftoff",
+        "name": "Airspeed low at liftoff",
+        "desc": "Low airspeed at lift-off may increase the risk of tail strike due to high pitch and could indicate engine failure, windshear, or aircraft mishandling.",
+        "reff": "All",
+        "severity": {
+            "1": [],
+            "2": [
+                {
+                    "field": "IAS",
+                    "value": "55",
+                    "method": "lte",
+                    "min_duration": "5"
+                }
+            ],
+            "3": [
+                {
+                    "field": "IAS",
+                    "value": "50",
+                    "method": "lte",
+                    "min_duration": "5"
+                }
+            ]
+        },
+        "conditions": {
+            "phase": ["INITIAL CLIMB","TAKEOFF"]
+        }
+    },
+    {
+        "code": "LSA620",
+        "abv": "Air spd lo 1000-500ft",
+        "name": "Airspeed low 1000-500ft",
+        "desc": "Possible unstable approach, reduced margins over stall speed and need for high power during later stages of approach.",
+        "reff": "All",
+        "severity": {
+            "1": [],
+            "2": [],
+            "3": [
+                {
+                    "field": "IAS",
+                    "value": "72",
+                    "method": "lte",
+                    "min_duration": "5"
+                }
+            ]
+        },
+        "conditions": {
+            "field": "AGL",
+            "min": 500,
+            "max": 1000
+        }
+    },
+    {
+        "code": "LSA621",
+        "abv": "Air spd lo 500-50ft",
+        "name": "Airspeed low 500-50ft",
+        "desc": "Possible unstable approach. reduced margins over stall speed and need for high power during later stages of approach.",
+        "reff": "All",
+        "severity": {
+            "1": [
+                {
+                    "field": "IAS",
+                    "value": "72",
+                    "method": "lte",
+                    "min_duration": "5"
+                }
+            ],
+            "2": [
+                {
+                    "field": "IAS",
+                    "value": "70",
+                    "method": "lte",
+                    "min_duration": "5"
+                }
+            ],
+            "3": [
+                {
+                    "field": "IAS",
+                    "value": "69",
+                    "method": "lte",
+                    "min_duration": "5"
+                }
+            ]
+        },
+        "conditions": {
+            "field": "AGL",
+            "min": 50,
+            "max": 500
+        }
+    },
+    {
+        "code": "LSA622",
+        "abv": "Air spd lo ldg",
+        "name": "Airspeed low at Landing",
+        "desc": "Low airspeed at landing can lead to a hard landing or possible tail-strike due to high pitch at low speed.",
+        "reff": "All",
+        "severity": {
+            "1": [
+                {
+                    "field": "IAS",
+                    "value": "65",
+                    "method": "lte",
+                    "min_duration": "5"
+                }
+            ],
+            "2": [
+                {
+                    "field": "IAS",
+                    "value": "63",
+                    "method": "lte",
+                    "min_duration": "5"
+                }
+            ],
+            "3": [
+                {
+                    "field": "IAS",
+                    "value": "60",
+                    "method": "lte",
+                    "min_duration": "5"
+                }
+            ]
+        },
+        "conditions": {
+            "phase": ["LANDING"]
+        }
+    },
+    {
+        "code": "LSA700",
+        "abv": "Air spd lo 35-400ft",
+        "name": "Airspeed low 35-400ft",
+        "desc": "Low airspeed could indicate windshear, engine failure or pilot mishandling leading to reduced safety margins.",
+        "reff": "All",
+        "severity": {
+            "1": [],
+            "2": [
+                {
+                    "field": "IAS",
+                    "value": "65",
+                    "method": "lte",
+                    "min_duration": "5"
+                }
+            ],
+            "3": [
+                {
+                    "field": "IAS",
+                    "value": "63",
+                    "method": "lte",
+                    "min_duration": "5"
+                }
+            ]
+        },
+        "conditions": {
+            "field": "AGL",
+            "min": 35,
+            "max": 400
+        }
+    },
+    {
+        "code": "LSA701",
+        "abv": "Air spd lo 400-1500ft",
+        "name": "Airspeed low 400-1500ft",
+        "desc": "Low airspeed could indicate windshear, engine failure or pilot mishandling leading to reduced safety margins.",
+        "reff": "All",
+        "severity": {
+            "1": [],
+            "2": [],
+            "3": [
+                {
+                    "field": "IAS",
+                    "value": "75",
+                    "method": "lte",
+                    "min_duration": "5"
+                }
+            ]
+        },
+        "conditions": {
+            "field": "AGL",
+            "min": 400,
+            "max": 1500
+        }
+    }
+]
