@@ -3,7 +3,7 @@
     "code": "GSG001",
     "abv": "Gnd spd hi taxi straight",
     "name": "Ground speed high taxi straight",
-    "desc": "High taxi speeds may increase risk of ground incidents and cause excessive brake wear [1].",
+    "desc": "High taxi speeds may increase risk of ground incidents and cause excessive brake wear.",
     "reff": "All",
     "severity": {
       "1": [],
@@ -13,6 +13,18 @@
           "field": "GndSpd",
           "value": "32",
           "method": "gte",
+          "min_duration": "0"
+        },
+        {
+          "field": "RateOfTurn",
+          "value": "-3",
+          "method": "gte",
+          "min_duration": "3"
+        },
+        {
+          "field": "RateOfTurn",
+          "value": "3",
+          "method": "lte",
           "min_duration": "3"
         }
       ]
@@ -22,6 +34,7 @@
         "TAXI OUT",
         "TAXI IN"
       ],
+      "exclude_icao": "WAYY",
       "invalid": [
         {
           "field": "FLIGHT_PHASE",
@@ -47,7 +60,7 @@
     "code": "GSG001",
     "abv": "Gnd spd hi taxi straight (WAYY)",
     "name": "Ground speed high taxi straight at WAYY",
-    "desc": "Specific ground speed limit for Taxi in/out at Mozes Kilangin Airport (WAYY) [1].",
+    "desc": "Specific ground speed limit for Taxi in/out at Mozes Kilangin Airport (WAYY).",
     "reff": "All",
     "severity": {
       "1": [],
@@ -57,6 +70,18 @@
           "field": "GndSpd",
           "value": "50",
           "method": "gte",
+          "min_duration": "0"
+        },
+        {
+          "field": "RateOfTurn",
+          "value": "-3",
+          "method": "gte",
+          "min_duration": "3"
+        },
+        {
+          "field": "RateOfTurn",
+          "value": "3",
+          "method": "lte",
           "min_duration": "3"
         }
       ]
@@ -525,7 +550,7 @@
     "severity": {
       "1": [
         {
-          "field": "AGL_LOSS",
+          "field": "AltAAL_LOSS",
           "value": "50",
           "method": "gte",
           "min_duration": "1"
@@ -533,7 +558,7 @@
       ],
       "2": [
         {
-          "field": "AGL_LOSS",
+          "field": "AltAAL_LOSS",
           "value": "75",
           "method": "gte",
           "min_duration": "1"
@@ -541,7 +566,7 @@
       ],
       "3": [
         {
-          "field": "AGL_LOSS",
+          "field": "AltAAL_LOSS",
           "value": "100",
           "method": "gte",
           "min_duration": "1"
@@ -549,7 +574,7 @@
       ]
     },
     "conditions": {
-      "field": "AGL",
+      "field": "AltAAL",
       "min": 20,
       "max": 400,
       "phase": [
@@ -562,12 +587,12 @@
     "code": "TAA006",
     "abv": "Hgt loss 400-1000ft",
     "name": "Height loss 400-1000ft",
-    "desc": "Significant height loss between 400ft and 1000ft AGL during initial climb.",
+    "desc": "Significant height loss between 400ft and 1000ft AltAAL during initial climb.",
     "reff": "All",
     "severity": {
       "1": [
         {
-          "field": "AGL_LOSS",
+          "field": "AltAAL_LOSS",
           "value": "100",
           "method": "gte",
           "min_duration": "1"
@@ -575,7 +600,7 @@
       ],
       "2": [
         {
-          "field": "AGL_LOSS",
+          "field": "AltAAL_LOSS",
           "value": "150",
           "method": "gte",
           "min_duration": "1"
@@ -583,7 +608,7 @@
       ],
       "3": [
         {
-          "field": "AGL_LOSS",
+          "field": "AltAAL_LOSS",
           "value": "200",
           "method": "gte",
           "min_duration": "1"
@@ -591,7 +616,7 @@
       ]
     },
     "conditions": {
-      "field": "AGL",
+      "field": "AltAAL",
       "min": 400,
       "max": 1000,
       "phase": [
@@ -608,7 +633,7 @@
     "severity": {
       "1": [
         {
-          "field": "AGL",
+          "field": "AltAAL",
           "value": "900",
           "method": "lte",
           "min_duration": "1"
@@ -622,7 +647,7 @@
       ],
       "2": [
         {
-          "field": "AGL",
+          "field": "AltAAL",
           "value": "500",
           "method": "lte",
           "min_duration": "1"
@@ -636,7 +661,7 @@
       ],
       "3": [
         {
-          "field": "AGL",
+          "field": "AltAAL",
           "value": "100",
           "method": "lte",
           "min_duration": "1"
@@ -744,7 +769,7 @@
       ]
     },
     "conditions": {
-      "field": "AGL",
+      "field": "AltAAL",
       "min": 0,
       "max": 20,
       "phase": [
@@ -789,7 +814,7 @@
       ]
     },
     "conditions": {
-      "field": "AGL",
+      "field": "AltAAL",
       "min": 20,
       "max": 100,
       "phase": [
@@ -802,7 +827,7 @@
     "code": "TRA006",
     "abv": "Roll hi 100-500ft",
     "name": "Roll high 100-500ft",
-    "desc": "Excessive roll angles detected between 100ft and 500ft AGL.",
+    "desc": "Excessive roll angles detected between 100ft and 500ft AltAAL.",
     "reff": "All",
     "severity": {
       "1": [
@@ -834,7 +859,7 @@
       ]
     },
     "conditions": {
-      "field": "AGL",
+      "field": "AltAAL",
       "min": 100,
       "max": 500,
       "phase": [
@@ -879,7 +904,7 @@
       ]
     },
     "conditions": {
-      "field": "AGL",
+      "field": "AltAAL",
       "min": 500,
       "phase": [
         "INITIAL CLIMB",
@@ -968,7 +993,7 @@
       "1": [],
       "2": [
         {
-          "field": "AGL",
+          "field": "AltAAL",
           "value": "1000",
           "method": "lte",
           "min_duration": "3"
@@ -976,7 +1001,7 @@
       ],
       "3": [
         {
-          "field": "AGL",
+          "field": "AltAAL",
           "value": "500",
           "method": "lte",
           "min_duration": "3"
@@ -1029,7 +1054,7 @@
       ]
     },
     "conditions": {
-      "field": "AGL",
+      "field": "AltAAL",
       "min": 0,
       "max": 500,
       "phase": [
@@ -1072,7 +1097,7 @@
       ]
     },
     "conditions": {
-      "field": "AGL",
+      "field": "AltAAL",
       "min": 500,
       "max": 1000,
       "phase": [
@@ -1113,7 +1138,7 @@
       ]
     },
     "conditions": {
-      "field": "AGL",
+      "field": "AltAAL",
       "min": 50,
       "max": 500,
       "phase": [
@@ -1154,7 +1179,7 @@
       ]
     },
     "conditions": {
-      "field": "AGL",
+      "field": "AltAAL",
       "min": 0,
       "max": 50,
       "phase": [
@@ -1229,7 +1254,7 @@
       "phase": [
         "INITIAL CLIMB"
       ],
-      "field": "AGL",
+      "field": "AltAAL",
       "min": 0
     }
   },
@@ -1252,7 +1277,7 @@
       ]
     },
     "conditions": {
-      "field": "AGL",
+      "field": "AltAAL",
       "min": 500,
       "max": 1000,
       "phase": [
@@ -1293,7 +1318,7 @@
       ]
     },
     "conditions": {
-      "field": "AGL",
+      "field": "AltAAL",
       "min": 50,
       "max": 500,
       "phase": [
@@ -1365,7 +1390,7 @@
       ]
     },
     "conditions": {
-      "field": "AGL",
+      "field": "AltAAL",
       "min": 35,
       "max": 400,
       "phase": [
@@ -1392,7 +1417,7 @@
       ]
     },
     "conditions": {
-      "field": "AGL",
+      "field": "AltAAL",
       "min": 400,
       "max": 1500,
       "phase": [

@@ -4,6 +4,7 @@ import sys
 import io
 import json
 import os
+import re
 import pandas as pd
 import numpy as np
 from typing import Dict, List, Optional, Tuple
@@ -32,10 +33,10 @@ AIRCRAFT_CONFIGS: Dict[str, Dict] = {
         #  V2: Ground ops 
         "taxi_speed_threshold"  : 6.0,
         "definitely_airborne_ias": 55.0,
-        "liftoff_agl"           : 30.0,     # static fallback
+        "liftoff_AltAAL"           : 30.0,     # static fallback
         #  V2: Landing 
-        "flare_agl"             : 50.0,
-        "touchdown_agl"         : 15.0,
+        "flare_AltAAL"             : 50.0,
+        "touchdown_AltAAL"         : 15.0,
         #  V2: Engine / power 
         "idle_ng_max"           : 68.0,
         "idle_fflow_max"        : 80.0,
@@ -46,7 +47,7 @@ AIRCRAFT_CONFIGS: Dict[str, Dict] = {
         "steep_turn_bank"       : 45.0,
         "hard_landing_g"        : 1.8,
         "high_wind_landing_kts" : 15.0,
-        "cruise_agl_min"        : 1000.0,   # static fallback
+        "cruise_AltAAL_min"        : 1000.0,   # static fallback
         #  V3: Hysteresis - CLIMB 
         "climb_rate_enter"      : 450.0,
         "climb_rate_exit"       : 300.0,
@@ -54,8 +55,8 @@ AIRCRAFT_CONFIGS: Dict[str, Dict] = {
         "descent_rate_enter"    : 450.0,
         "descent_rate_exit"     : 250.0,
         #  V3: Hysteresis - AIRBORNE 
-        "liftoff_agl_enter"     : 40.0,
-        "liftoff_agl_exit"      : 20.0,
+        "liftoff_AltAAL_enter"     : 40.0,
+        "liftoff_AltAAL_exit"      : 20.0,
         #  Event detection thresholds 
         # Verify ITT limits against aircraft AMM before deploying.
         "vmo_kias"              : 175.0,    # max operating speed (KIAS)
@@ -85,9 +86,9 @@ AIRCRAFT_CONFIGS: Dict[str, Dict] = {
         "climb_rate_threshold"  : 400.0,
         "taxi_speed_threshold"  : 6.0,
         "definitely_airborne_ias": 57.0,
-        "liftoff_agl"           : 30.0,
-        "flare_agl"             : 50.0,
-        "touchdown_agl"         : 15.0,
+        "liftoff_AltAAL"           : 30.0,
+        "flare_AltAAL"             : 50.0,
+        "touchdown_AltAAL"         : 15.0,
         "idle_ng_max"           : 68.0,
         "idle_fflow_max"        : 85.0,
         "takeoff_torque_min"    : 1100.0,
@@ -96,13 +97,13 @@ AIRCRAFT_CONFIGS: Dict[str, Dict] = {
         "steep_turn_bank"       : 45.0,
         "hard_landing_g"        : 1.8,
         "high_wind_landing_kts" : 15.0,
-        "cruise_agl_min"        : 1000.0,
+        "cruise_AltAAL_min"        : 1000.0,
         "climb_rate_enter"      : 450.0,
         "climb_rate_exit"       : 300.0,
         "descent_rate_enter"    : 450.0,
         "descent_rate_exit"     : 250.0,
-        "liftoff_agl_enter"     : 40.0,
-        "liftoff_agl_exit"      : 20.0,
+        "liftoff_AltAAL_enter"     : 40.0,
+        "liftoff_AltAAL_exit"      : 20.0,
         "vmo_kias"              : 175.0,
         "vref_approach"         : 85.0,
         "hard_landing_g_critical": 2.1,
@@ -130,9 +131,9 @@ AIRCRAFT_CONFIGS: Dict[str, Dict] = {
         "climb_rate_threshold"  : 400.0,
         "taxi_speed_threshold"  : 6.0,
         "definitely_airborne_ias": 57.0,
-        "liftoff_agl"           : 30.0,
-        "flare_agl"             : 50.0,
-        "touchdown_agl"         : 15.0,
+        "liftoff_AltAAL"           : 30.0,
+        "flare_AltAAL"             : 50.0,
+        "touchdown_AltAAL"         : 15.0,
         "idle_ng_max"           : 68.0,
         "idle_fflow_max"        : 90.0,
         "takeoff_torque_min"    : 1200.0,
@@ -141,13 +142,13 @@ AIRCRAFT_CONFIGS: Dict[str, Dict] = {
         "steep_turn_bank"       : 45.0,
         "hard_landing_g"        : 1.8,
         "high_wind_landing_kts" : 15.0,
-        "cruise_agl_min"        : 1000.0,
+        "cruise_AltAAL_min"        : 1000.0,
         "climb_rate_enter"      : 500.0,
         "climb_rate_exit"       : 320.0,
         "descent_rate_enter"    : 500.0,
         "descent_rate_exit"     : 280.0,
-        "liftoff_agl_enter"     : 40.0,
-        "liftoff_agl_exit"      : 20.0,
+        "liftoff_AltAAL_enter"     : 40.0,
+        "liftoff_AltAAL_exit"      : 20.0,
         "vmo_kias"              : 175.0,
         "vref_approach"         : 88.0,
         "hard_landing_g_critical": 2.1,
@@ -175,9 +176,9 @@ AIRCRAFT_CONFIGS: Dict[str, Dict] = {
         "climb_rate_threshold"  : 300.0,
         "taxi_speed_threshold"  : 5.0,
         "definitely_airborne_ias": 50.0,
-        "liftoff_agl"           : 30.0,
-        "flare_agl"             : 50.0,
-        "touchdown_agl"         : 15.0,
+        "liftoff_AltAAL"           : 30.0,
+        "flare_AltAAL"             : 50.0,
+        "touchdown_AltAAL"         : 15.0,
         "idle_ng_max"           : 68.0,
         "idle_fflow_max"        : 80.0,
         "takeoff_torque_min"    : 900.0,
@@ -186,13 +187,13 @@ AIRCRAFT_CONFIGS: Dict[str, Dict] = {
         "steep_turn_bank"       : 45.0,
         "hard_landing_g"        : 1.8,
         "high_wind_landing_kts" : 15.0,
-        "cruise_agl_min"        : 1000.0,
+        "cruise_AltAAL_min"        : 1000.0,
         "climb_rate_enter"      : 380.0,
         "climb_rate_exit"       : 220.0,
         "descent_rate_enter"    : 380.0,
         "descent_rate_exit"     : 200.0,
-        "liftoff_agl_enter"     : 35.0,
-        "liftoff_agl_exit"      : 15.0,
+        "liftoff_AltAAL_enter"     : 35.0,
+        "liftoff_AltAAL_exit"      : 15.0,
         "vmo_kias"              : 175.0,
         "vref_approach"         : 85.0,
         "hard_landing_g_critical": 2.1,
@@ -274,49 +275,49 @@ FLIGHT_EVENT_DEFINITIONS: Dict[str, Dict] = {
     # LVD030  rate of descent high below 500 ft
     'ROD_HI_500FT': {
         'S1': {'min_duration': 3,
-               'description': 'LVD030: Descent rate  1000 fpm below 500 ft AGL'},
+               'description': 'LVD030: Descent rate  1000 fpm below 500 ft AltAAL'},
         'S2': {'min_duration': 3,
-               'description': 'LVD030: Descent rate  1300 fpm below 500 ft AGL  unstabilised approach'},
+               'description': 'LVD030: Descent rate  1300 fpm below 500 ft AltAAL  unstabilised approach'},
         'S3': {'min_duration': 3,
-               'description': 'LVD030: Descent rate  1700 fpm below 500 ft AGL  CFIT risk'},
+               'description': 'LVD030: Descent rate  1700 fpm below 500 ft AltAAL  CFIT risk'},
     },
 
     # LXX100  unstable approach (composite: speed + VS)
     'UNSTABLE_APP': {
         'S2': {'min_duration': 3,
-               'description': 'LXX100: Speed or descent rate outside limits at ÃÂÃÂ¤ 1000 ft AGL'},
+               'description': 'LXX100: Speed or descent rate outside limits at 1000 ft AltAAL'},
         'S3': {'min_duration': 3,
-               'description': 'LXX100: Speed or descent rate outside limits at ÃÂÃÂ¤ 500 ft AGL'},
+               'description': 'LXX100: Speed or descent rate outside limits at 500 ft AltAAL'},
     },
 
     # LSA505  airspeed high 1000-500 ft
     'AIR_SPD_HI_1000_500FT': {
         'S1': {'min_duration': 15,
-               'description': 'LSA505: IAS  125 kts at 1000-500 ft AGL'},
+               'description': 'LSA505: IAS  125 kts at 1000-500 ft AltAAL'},
         'S2': {'min_duration': 15,
-               'description': 'LSA505: IAS  135 kts at 1000-500 ft AGL'},
+               'description': 'LSA505: IAS  135 kts at 1000-500 ft AltAAL'},
         'S3': {'min_duration': 15,
-               'description': 'LSA505: IAS  155 kts at 1000-500 ft AGL'},
+               'description': 'LSA505: IAS  155 kts at 1000-500 ft AltAAL'},
     },
 
     # LSA512  airspeed high 500-50 ft
     'AIR_SPD_HI_500_50FT': {
         'S1': {'min_duration': 5,
-               'description': 'LSA512: IAS  105 kts at 500-50 ft AGL'},
+               'description': 'LSA512: IAS  105 kts at 500-50 ft AltAAL'},
         'S2': {'min_duration': 5,
-               'description': 'LSA512: IAS  110 kts at 500-50 ft AGL'},
+               'description': 'LSA512: IAS  110 kts at 500-50 ft AltAAL'},
         'S3': {'min_duration': 5,
-               'description': 'LSA512: IAS  115 kts at 500-50 ft AGL'},
+               'description': 'LSA512: IAS  115 kts at 500-50 ft AltAAL'},
     },
 
     # LSA513  airspeed high below 50 ft
     'AIR_SPD_HI_50FT': {
         'S1': {'min_duration': 5,
-               'description': 'LSA513: IAS  90 kts below 50 ft AGL'},
+               'description': 'LSA513: IAS  90 kts below 50 ft AltAAL'},
         'S2': {'min_duration': 5,
-               'description': 'LSA513: IAS  95 kts below 50 ft AGL'},
+               'description': 'LSA513: IAS  95 kts below 50 ft AltAAL'},
         'S3': {'min_duration': 5,
-               'description': 'LSA513: IAS  100 kts below 50 ft AGL'},
+               'description': 'LSA513: IAS  100 kts below 50 ft AltAAL'},
     },
 
     # LSA514  airspeed high at landing
@@ -332,49 +333,49 @@ FLIGHT_EVENT_DEFINITIONS: Dict[str, Dict] = {
     # LSA620  airspeed low 1000-500 ft
     'AIR_SPD_LO_1000_500FT': {
         'S3': {'min_duration': 5,
-               'description': 'LSA620: IAS ÃÂÃÂ¤ 72 kts at 1000-500 ft AGL  reduced stall margin'},
+               'description': 'LSA620: IAS <= 72 kts at 1000-500 ft AltAAL  reduced stall margin'},
     },
 
     # LSA621  airspeed low 500-50 ft
     'AIR_SPD_LO_500_50FT': {
         'S1': {'min_duration': 5,
-               'description': 'LSA621: IAS ÃÂÃÂ¤ 72 kts at 500-50 ft AGL'},
+               'description': 'LSA621: IAS <= 72 kts at 500-50 ft AltAAL'},
         'S2': {'min_duration': 5,
-               'description': 'LSA621: IAS ÃÂÃÂ¤ 70 kts at 500-50 ft AGL'},
+               'description': 'LSA621: IAS <= 70 kts at 500-50 ft AltAAL'},
         'S3': {'min_duration': 5,
-               'description': 'LSA621: IAS ÃÂÃÂ¤ 69 kts at 500-50 ft AGL  stall risk'},
+               'description': 'LSA621: IAS <= 69 kts at 500-50 ft AltAAL  stall risk'},
     },
 
     # LSA622  airspeed low at landing
     'AIR_SPD_LO_LDG': {
         'S1': {'min_duration': 5,
-               'description': 'LSA622: IAS ÃÂÃÂ¤ 65 kts at landing  hard landing / tail-strike risk'},
+               'description': 'LSA622: IAS <= 65 kts at landing  hard landing / tail-strike risk'},
         'S2': {'min_duration': 5,
-               'description': 'LSA622: IAS ÃÂÃÂ¤ 63 kts at landing'},
+               'description': 'LSA622: IAS <= 63 kts at landing'},
         'S3': {'min_duration': 5,
-               'description': 'LSA622: IAS ÃÂÃÂ¤ 60 kts at landing  imminent stall'},
+               'description': 'LSA622: IAS <= 60 kts at landing  imminent stall'},
     },
 
     # LSA700  airspeed low 35-400 ft (departure side)
     'AIR_SPD_LO_35_400FT': {
         'S2': {'min_duration': 5,
-               'description': 'LSA700: IAS ÃÂÃÂ¤ 65 kts at 35-400 ft AGL  engine failure / windshear risk'},
+               'description': 'LSA700: IAS <= 65 kts at 35-400 ft AltAAL  engine failure / windshear risk'},
         'S3': {'min_duration': 5,
-               'description': 'LSA700: IAS ÃÂÃÂ¤ 63 kts at 35-400 ft AGL  LOC-I risk'},
+               'description': 'LSA700: IAS <= 63 kts at 35-400 ft AltAAL  LOC-I risk'},
     },
 
     # LSA701  airspeed low 400-1500 ft
     'AIR_SPD_LO_400_1500FT': {
         'S3': {'min_duration': 5,
-               'description': 'LSA701: IAS ÃÂÃÂ¤ 75 kts at 400-1500 ft AGL  reduced safety margin'},
+               'description': 'LSA701: IAS <= 75 kts at 400-1500 ft AltAAL  reduced safety margin'},
     },
 
     # TSA260  airspeed low at liftoff
     'AIR_SPD_LO_LIFTOFF': {
         'S2': {'min_duration': 5,
-               'description': 'TSA260: IAS ÃÂÃÂ¤ 55 kts at liftoff  tail strike / engine failure risk'},
+               'description': 'TSA260: IAS <= 55 kts at liftoff  tail strike / engine failure risk'},
         'S3': {'min_duration': 5,
-               'description': 'TSA260: IAS ÃÂÃÂ¤ 50 kts at liftoff  critical'},
+               'description': 'TSA260: IAS <= 50 kts at liftoff  critical'},
     },
 
     #  Takeoff & liftoff 
@@ -391,9 +392,9 @@ FLIGHT_EVENT_DEFINITIONS: Dict[str, Dict] = {
     # TPA029  pitch high at takeoff
     'PITCH_HI_TO': {
         'S2': {'min_duration': 2,
-               'description': 'TPA029: Pitch  13.5Â° during takeoff  tail strike / obstacle clearance risk'},
+               'description': 'TPA029: Pitch  13.5° during takeoff  tail strike / obstacle clearance risk'},
         'S3': {'min_duration': 2,
-               'description': 'TPA029: Pitch  15Â° during takeoff  tail strike risk'},
+               'description': 'TPA029: Pitch  15° during takeoff  tail strike risk'},
     },
 
     # TEQ002  engine torque high at takeoff
@@ -439,62 +440,62 @@ FLIGHT_EVENT_DEFINITIONS: Dict[str, Dict] = {
     # TRA000  roll high liftoff to 20 ft
     'ROLL_HI_LIFTOFF_20FT': {
         'S1': {'min_duration': 3,
-               'description': 'TRA000: Roll  15Â° at 0-20 ft AGL  directional control concern'},
+               'description': 'TRA000: Roll  15Â° at 0-20 ft AltAAL  directional control concern'},
         'S2': {'min_duration': 3,
-               'description': 'TRA000: Roll  20Â° at 0-20 ft AGL'},
+               'description': 'TRA000: Roll  20Â° at 0-20 ft AltAAL'},
         'S3': {'min_duration': 3,
-               'description': 'TRA000: Roll  30Â° at 0-20 ft AGL  engine failure / windshear'},
+               'description': 'TRA000: Roll  30Â° at 0-20 ft AltAAL  engine failure / windshear'},
     },
 
     # TRA005  roll high 20-100 ft
     'ROLL_HI_20_100FT': {
         'S1': {'min_duration': 3,
-               'description': 'TRA005: Roll  15Â° at 20-100 ft AGL'},
+               'description': 'TRA005: Roll  15Â° at 20-100 ft AltAAL'},
         'S2': {'min_duration': 3,
-               'description': 'TRA005: Roll  20Â° at 20-100 ft AGL'},
+               'description': 'TRA005: Roll  20Â° at 20-100 ft AltAAL'},
         'S3': {'min_duration': 3,
-               'description': 'TRA005: Roll  30Â° at 20-100 ft AGL  LOC-I risk'},
+               'description': 'TRA005: Roll  30Â° at 20-100 ft AltAAL  LOC-I risk'},
     },
 
     # TRA006  roll high 100-500 ft
     'ROLL_HI_100_500FT': {
         'S1': {'min_duration': 3,
-               'description': 'TRA006: Roll  31Â° at 100-500 ft AGL'},
+               'description': 'TRA006: Roll  31Â° at 100-500 ft AltAAL'},
         'S2': {'min_duration': 3,
-               'description': 'TRA006: Roll  41Â° at 100-500 ft AGL'},
+               'description': 'TRA006: Roll  41Â° at 100-500 ft AltAAL'},
         'S3': {'min_duration': 3,
-               'description': 'TRA006: Roll  46Â° at 100-500 ft AGL  LOC-I risk'},
+               'description': 'TRA006: Roll  46Â° at 100-500 ft AltAAL  LOC-I risk'},
     },
 
     # FRA003  roll high above 500 ft
     'ROLL_HI_500FT': {
         'S1': {'min_duration': 3,
-               'description': 'FRA003: Roll  35Â° above 500 ft AGL  outside normal ops'},
+               'description': 'FRA003: Roll  35° above 500 ft AltAAL  outside normal ops'},
         'S2': {'min_duration': 3,
-               'description': 'FRA003: Roll  41Â° above 500 ft AGL'},
+               'description': 'FRA003: Roll  41° above 500 ft AltAAL'},
         'S3': {'min_duration': 3,
-               'description': 'FRA003: Roll  46Â° above 500 ft AGL  pilot over-control / system malfunction'},
+               'description': 'FRA003: Roll  46° above 500 ft AltAAL  pilot over-control / system malfunction'},
     },
 
     #  Altitude / height loss 
     # TAA005  height loss 20-400 ft
     'HGT_LOSS_20_400FT': {
         'S1': {'min_duration': 1,
-               'description': 'TAA005: Height loss  50 ft at 20-400 ft AGL  obstacle clearance reduced'},
+               'description': 'TAA005: Height loss  50 ft at 20-400 ft AltAAL  obstacle clearance reduced'},
         'S2': {'min_duration': 1,
-               'description': 'TAA005: Height loss  75 ft at 20-400 ft AGL'},
+               'description': 'TAA005: Height loss  75 ft at 20-400 ft AltAAL'},
         'S3': {'min_duration': 1,
-               'description': 'TAA005: Height loss  100 ft at 20-400 ft AGL  engine failure / windshear'},
+               'description': 'TAA005: Height loss  100 ft at 20-400 ft AltAAL  engine failure / windshear'},
     },
 
     # TAA006  height loss 400-1000 ft
     'HGT_LOSS_400_1000FT': {
         'S1': {'min_duration': 1,
-               'description': 'TAA006: Height loss  100 ft at 400-1000 ft AGL'},
+               'description': 'TAA006: Height loss  100 ft at 400-1000 ft AltAAL'},
         'S2': {'min_duration': 1,
-               'description': 'TAA006: Height loss  150 ft at 400-1000 ft AGL'},
+               'description': 'TAA006: Height loss  150 ft at 400-1000 ft AltAAL'},
         'S3': {'min_duration': 1,
-               'description': 'TAA006: Height loss  200 ft at 400-1000 ft AGL  CFIT risk'},
+               'description': 'TAA006: Height loss  200 ft at 400-1000 ft AltAAL  CFIT risk'},
     },
 
     #  Airspeed 
@@ -534,7 +535,7 @@ FLIGHT_EVENT_DEFINITIONS: Dict[str, Dict] = {
     # GET050  engine start
     'ENG_GAS_TEMP_START_HI': {
         'S3': {'min_duration': 3,
-               'description': 'GET050: ITT  900 Â°C during engine start  hot start risk'},
+               'description': 'GET050: ITT  900°C during engine start  hot start risk'},
     },
     # TET000  takeoff (5-min window)
     'ENG_GAS_TEMP_TO_HI': {
@@ -646,7 +647,7 @@ def require_persistence(mask: pd.Series, min_duration: int) -> pd.Series:
 
 # 
 #  MAIN CLASSIFIER --
-#  AIRPORT IDENTIFICATION   GPS-based, radius 5 km
+#  AIRPORT IDENTIFICATION   GPS-based, radius 8 km
 #  Used to apply airport-specific event thresholds (e.g. WAYY taxi speed).
 #  Expand this dict to add more airports as needed.
 # 
@@ -676,6 +677,21 @@ def _nearest_icao(lat: float, lon: float) -> str:
     return best_icao if best_dist <= _AIRPORT_RADIUS_KM else ''
 
 
+def _icao_from_filename(path: str) -> str:
+    """Try to derive a departure ICAO from the input filename."""
+    stem = Path(path).stem.upper()
+    # Prefer explicit known special airports in the filename.
+    for icao in SPECIAL_AIRPORTS.keys():
+        if icao in stem:
+            return icao
+
+    # Fallback: use the first 4-character alphanumeric prefix.
+    if len(stem) >= 4 and re.match(r'^[A-Z0-9]{4}', stem):
+        return stem[:4]
+
+    return ''
+
+
 class FOQAFlightClassifier:
 
     SMOOTHING_MIN_DURATION = 4
@@ -685,11 +701,11 @@ class FOQAFlightClassifier:
     ADAPTIVE_MIN_ROWS = 100
 
     def __init__(self, aircraft_type: str = "Generic", debug_mode: bool = False,
-                 dep_icao: str = ""):
+                 dep_icao: str = "", arr_icao: str = ""):
         self.cfg          = AIRCRAFT_CONFIGS.get(aircraft_type, AIRCRAFT_CONFIGS["Generic"])
         self.aircraft_type = aircraft_type
         self.dep_icao     = dep_icao.upper().strip()
-        self.arr_icao     = ''   # resolved in compute_agl from GPS
+        self.arr_icao     = arr_icao.upper().strip()
         self.debug_mode   = debug_mode
         # JSON-driven event definitions (loaded once per classifier instance)
         self.event_defs: list = load_event_definitions()
@@ -700,7 +716,7 @@ class FOQAFlightClassifier:
         self._dyn: Dict[str, float] = {
             'climb_rate'   : self.cfg['climb_rate_threshold'],
             'descent_rate' : self.cfg['climb_rate_threshold'],   # same default
-            'cruise_agl'   : self.cfg['cruise_agl_min'],
+            'cruise_AltAAL'   : self.cfg['cruise_AltAAL_min'],
         }
 
         # NormAc format: 1.0 = absolute (1G on ground), 0.0 = delta (0G on ground)
@@ -807,9 +823,24 @@ class FOQAFlightClassifier:
         df['fflow_idle']  = (df['E1 FFlow'] < self.cfg['idle_fflow_max']).astype(int)
         df['ng_high']     = (df['E1 NG']    > self.cfg['idle_ng_max']).astype(int)
 
+        hdg_col = 'HDG' if 'HDG' in df.columns else ('TRK' if 'TRK' in df.columns else None)
+        
+        if hdg_col:
+            # 1. Hitung selisih derajat antar detik
+            hdg_diff = df[hdg_col].diff().fillna(0)
+            
+            # 2. Koreksi wraparound kompas (misal dari 359 derajat ke 1 derajat itu selisihnya cuma +2, bukan -358)
+            hdg_diff = hdg_diff.apply(lambda x: x - 360 if x > 180 else (x + 360 if x < -180 else x))
+            
+            # 3. Smooth data pakai rolling window (3 detik) biar gak triger gara-gara noise sensor
+            df['RateOfTurn'] = hdg_diff.rolling(window=3, center=True, min_periods=1).mean()
+        else:
+            # Fallback kalau CSV gak punya kolom heading sama sekali
+            df['RateOfTurn'] = 0.0
+
         return df
 
-    #  2. AGL COMPUTATION  (V5: exact FDA Aering method, verified)
+    #  2. AltAAL COMPUTATION  (V5: exact FDA Aering method, verified)
     #
     # Formula reverse-engineered from FDA Aering output and confirmed with
     # GearOnGround data (pk-sno-flight-at-feb-28t__1_.csv):
@@ -834,181 +865,152 @@ class FOQAFlightClassifier:
     #
     #   AAL        : AltB ÃÂ ground_ref, clamped to 0
 
-    def compute_agl(self, df: pd.DataFrame) -> pd.DataFrame:
-
-        alt_col = None
-        for col in ['AltB', 'AltInd', 'AltMSL', 'AltGPS']:
-            if col in df.columns and not df[col].isnull().all() \
-                    and pd.to_numeric(df[col], errors='coerce').max() > 0:
-                alt_col = col
-                break
-        if alt_col is None:
-            df['AGL'] = 0.0
+    def compute_AltAAL(self, df: pd.DataFrame) -> pd.DataFrame:
+    
+            alt_col = None
+            for col in ['AltB', 'AltInd', 'AltMSL', 'AltGPS']:
+                if col in df.columns and not df[col].isnull().all() \
+                        and pd.to_numeric(df[col], errors='coerce').max() > 0:
+                    alt_col = col
+                    break
+            if alt_col is None:
+                df['AltAAL'] = 0.0
+                return df
+    
+            valid_alts = pd.to_numeric(df[alt_col], errors='coerce')
+            gndspd     = pd.to_numeric(df['GndSpd'], errors='coerce').fillna(0.0)
+            n_rows     = len(df)
+            sample_n   = min(180, n_rows)
+    
+            dep_elev  = np.nan
+            dest_elev = np.nan
+    
+            # ── Departure elevation: minimum altitude while stationary before liftoff.
+            # We look for rows with GndSpd < 5 kts BEFORE the first sustained
+            # high-speed segment (5+ consecutive rows > 80 kts).
+            # Using stationary rows (not the takeoff-roll window) is critical for
+            # high-elevation airports (e.g. WAMENA ~7000 ft): the rolling window
+            # during the takeoff roll reads 2–3 ft above actual ground elevation,
+            # which causes every subsequent AltAAL value to clip to 0.
+            try:
+                airborne_mask = (gndspd > 80).astype(int)
+                rolling_5     = airborne_mask.rolling(5, min_periods=5).sum()
+                first_cruise  = int(rolling_5[rolling_5 >= 5].index[0]) - 4
+                # Stationary rows before the takeoff roll
+                stationary_before = gndspd.iloc[:first_cruise][gndspd.iloc[:first_cruise] < 5]
+                if len(stationary_before) >= 3:
+                    # Use minimum of stationary-phase altitudes — most accurate ground ref
+                    dep_elev = float(valid_alts.iloc[stationary_before.index].dropna().min())
+                else:
+                    # No stationary phase (file starts mid-flight or short taxi):
+                    # fall back to the minimum altitude in the first 25% of flight
+                    # while GndSpd < 40 (still on ground or very low)
+                    pre_flight = gndspd.iloc[:first_cruise]
+                    slow_before = pre_flight[pre_flight < 40]
+                    if len(slow_before) >= 1:
+                        dep_elev = float(valid_alts.iloc[slow_before.index].dropna().min())
+            except Exception:
+                pass
+    
+            # ── Destination elevation: median of stationary rows (GndSpd < 5) in
+            # the last 25 % of the flight.  The aircraft at rest on the destination
+            # apron gives the most accurate barometric ground reference — no dynamic
+            # pressure error, no pitch attitude error.
+            # Using the pre-touchdown approach window (the previous method) is less
+            # reliable because those rows reflect mid-approach altitude, not the
+            # runway elevation, causing dest_elev to be set too low and AltAAL to read
+            # large positive values (e.g. 148 ft) at actual touchdown.
+            try:
+                dest_start  = int(n_rows * 0.75)
+                slow_end    = gndspd.iloc[dest_start:][gndspd.iloc[dest_start:] < 5]
+                if len(slow_end) >= 3:
+                    dest_vals = valid_alts.iloc[slow_end.index].dropna()
+                    dest_vals = dest_vals[dest_vals > 0]
+                    if len(dest_vals) >= 3:
+                        dest_elev = float(dest_vals.median())
+            except Exception:
+                pass
+    
+            # ── Fallback to slow-speed window if transitions not detectable
+            def slow_min(subset: pd.DataFrame) -> float:
+                spd  = pd.to_numeric(subset['GndSpd'], errors='coerce')
+                slow = subset[spd < 40]
+                vals = pd.to_numeric(
+                    slow[alt_col] if len(slow) >= 5 else subset[alt_col],
+                    errors='coerce').dropna()
+                return float(vals.nsmallest(min(10, len(vals))).min()) \
+                    if len(vals) >= 3 else np.nan
+    
+            if pd.isna(dep_elev):
+                dep_elev  = slow_min(df.iloc[:sample_n])
+            if pd.isna(dest_elev):
+                dest_elev = slow_min(df.iloc[-sample_n:])
+    
+            if pd.isna(dep_elev)  and not pd.isna(dest_elev): dep_elev  = dest_elev
+            if pd.isna(dest_elev) and not pd.isna(dep_elev):  dest_elev = dep_elev
+            if pd.isna(dep_elev):
+                p2 = float(np.nanpercentile(valid_alts.dropna(), 2)) \
+                    if valid_alts.notna().any() else 0.0
+                dep_elev = dest_elev = p2
+    
+            # ── Switch at smoothed peak altitude (top of climb = FDA Aering switch point)
+            smoothed   = valid_alts.rolling(window=30, min_periods=1, center=True).mean()
+            switch_row = int(smoothed.idxmax())
+    
+            # ── Step ground reference
+            ground_ref = np.where(np.arange(n_rows) < switch_row, dep_elev, dest_elev)
+            ground_ref = pd.Series(ground_ref, index=df.index)
+    
+            df['AltAAL'] = (valid_alts - ground_ref).fillna(0).clip(lower=0)
+    
+            # ── Ground clamps — suppress baro noise on the ground
+            # Regime 1: stationary — cannot be airborne
+            df.loc[gndspd < 5, 'AltAAL'] = 0.0
+            # Regime 2: taxi / roll speeds (5–50 kts) with implausibly low AltAAL reading.
+            # The 208B rotates at ~60 kts; any AltAAL < 150 ft below 50 kts is baro noise.
+            taxi_noise = (gndspd >= 5) & (gndspd < 50) & (df['AltAAL'] < 150)
+            df.loc[taxi_noise, 'AltAAL'] = 0.0
+    
+            # ── isGearGround — state machine with asymmetric hysteresis
+            #
+            # A stateless AltAAL==0 check fails in two ways at low AltAAL where baro
+            # noise is ±10–20 ft:
+            #   (a) FALSE GROUND during FLARE: baro dips to runway reference while
+            #       the aircraft is still descending at ~−350 fpm and AltAAL clips to 0.
+            #       Verified on WAVA log: VSpd=−314 fpm, AltInd still falling.
+            #   (b) FALSE AIRBORNE during ROLLOUT: baro bounces +15 ft after
+            #       touchdown, AltAAL reads non-zero while aircraft decelerates on runway.
+            #
+            # EXIT ground  → airborne : AltAAL > 40 ft  AND  IAS > rotation_ias
+            #   A baro bounce during rollout at < Vr cannot clear both conditions.
+            #
+            # ENTER ground ← airborne : AltAAL ≤ 0  AND  VSpd > −300 fpm
+            #   −300 fpm blocks active flare descent (a); VSpd arrests to > −300 fpm
+            #   within 1 row of real contact.
+            #   Verified: actual touchdown at −256 fpm passes; flare at −314 blocked.
+    
+            _liftoff_AltAAL = self.cfg['liftoff_AltAAL_enter']   # 40 ft
+            _vr          = self.cfg['rotation_ias']         # e.g. 60 kts
+    
+            _AltAAL_np  = df['AltAAL'].to_numpy()
+            _ias_np  = pd.to_numeric(df['IAS'],  errors='coerce').fillna(0.0).to_numpy()
+            _vspd_np = pd.to_numeric(df['VSpd'], errors='coerce').fillna(0.0).to_numpy()
+    
+            _on_ground  = not (float(_AltAAL_np[0]) > _liftoff_AltAAL and float(_ias_np[0]) > _vr)
+            _gear_flags = np.empty(len(df), dtype=np.int8)
+    
+            for _i in range(len(df)):
+                if not _on_ground:
+                    if _AltAAL_np[_i] <= 0.0 and _vspd_np[_i] > -300.0:
+                        _on_ground = True
+                else:
+                    if _AltAAL_np[_i] > _liftoff_AltAAL and _ias_np[_i] > _vr:
+                        _on_ground = False
+                _gear_flags[_i] = 1 if _on_ground else 0
+    
+            df['isGearGround'] = _gear_flags
+    
             return df
-
-        valid_alts = pd.to_numeric(df[alt_col], errors='coerce')
-        gndspd     = pd.to_numeric(df['GndSpd'], errors='coerce').fillna(0.0)
-        n_rows     = len(df)
-        sample_n   = min(180, n_rows)
-
-        dep_elev  = np.nan
-        dest_elev = np.nan
-
-        #  Departure elevation: minimum altitude while stationary before liftoff.
-        # We look for rows with GndSpd < 5 kts BEFORE the first sustained
-        # high-speed segment (5+ consecutive rows > 80 kts).
-        # Using stationary rows (not the takeoff-roll window) is critical for
-        # high-elevation airports (e.g. WAMENA ~7000 ft): the rolling window
-        # during the takeoff roll reads 2-3 ft above actual ground elevation,
-        # which causes every subsequent AGL value to clip to 0.
-        try:
-            airborne_mask = (gndspd > 80).astype(int)
-            rolling_5     = airborne_mask.rolling(5, min_periods=5).sum()
-            first_cruise  = int(rolling_5[rolling_5 >= 5].index[0]) - 4
-            # Stationary rows before the takeoff roll
-            stationary_before = gndspd.iloc[:first_cruise][gndspd.iloc[:first_cruise] < 5]
-            if len(stationary_before) >= 3:
-                # Median of stationary rows with alt>0 (skip avionics-init row 0)
-                dep_vals = valid_alts.iloc[stationary_before.index].dropna()
-                dep_vals = dep_vals[dep_vals > 0]
-                dep_elev = float(dep_vals.median()) if len(dep_vals) >= 3 else np.nan
-            else:
-                # No stationary phase (file starts mid-flight or short taxi):
-                # fall back to the minimum altitude in the first 25% of flight
-                # while GndSpd < 40 (still on ground or very low)
-                pre_flight = gndspd.iloc[:first_cruise]
-                slow_before = pre_flight[pre_flight < 40]
-                if len(slow_before) >= 1:
-                    dep_elev = float(valid_alts.iloc[slow_before.index].dropna().min())
-        except Exception:
-            pass
-
-        # -- Destination elevation: median of last stationary rows (GndSpd < 5, alt > 0)
-        # More accurate than pre-touchdown altitude  the aircraft is at rest,
-        # so the altimeter reads actual airport elevation. Pre-touchdown reads
-        # mid-approach altitude and under-estimates high-elevation airports.
-        try:
-            dest_start   = int(n_rows * 0.75)
-            slow_end     = gndspd.iloc[dest_start:][gndspd.iloc[dest_start:] < 5]
-            if len(slow_end) >= 3:
-                dest_vals = valid_alts.iloc[slow_end.index].dropna()
-                dest_vals = dest_vals[dest_vals > 0]
-                dest_elev = float(dest_vals.median()) if len(dest_vals) >= 3 else np.nan
-        except Exception:
-            pass
-
-        #  Fallback to slow-speed window if transitions not detectable
-        def slow_min(subset: pd.DataFrame) -> float:
-            spd  = pd.to_numeric(subset['GndSpd'], errors='coerce')
-            slow = subset[spd < 40]
-            vals = pd.to_numeric(
-                slow[alt_col] if len(slow) >= 5 else subset[alt_col],
-                errors='coerce').dropna()
-            return float(vals.nsmallest(min(10, len(vals))).min()) \
-                   if len(vals) >= 3 else np.nan
-
-        if pd.isna(dep_elev):
-            dep_elev  = slow_min(df.iloc[:sample_n])
-        if pd.isna(dest_elev):
-            dest_elev = slow_min(df.iloc[-sample_n:])
-
-        if pd.isna(dep_elev)  and not pd.isna(dest_elev): dep_elev  = dest_elev
-        if pd.isna(dest_elev) and not pd.isna(dep_elev):  dest_elev = dep_elev
-        if pd.isna(dep_elev):
-            p2 = float(np.nanpercentile(valid_alts.dropna(), 2)) \
-                 if valid_alts.notna().any() else 0.0
-            dep_elev = dest_elev = p2
-
-        #  Switch at smoothed peak altitude (top of climb = FDA Aering switch point)
-        smoothed   = valid_alts.rolling(window=30, min_periods=1, center=True).mean()
-        switch_row = int(smoothed.idxmax())
-
-        #  Step ground reference
-        ground_ref = np.where(np.arange(n_rows) < switch_row, dep_elev, dest_elev)
-        ground_ref = pd.Series(ground_ref, index=df.index)
-
-        df['AGL'] = (valid_alts - ground_ref).fillna(0).clip(lower=0)
-
-        #  Ground clamps 
-        #
-        # Problem: barometric altimeter initialises noisily and drifts during
-        # taxi, causing AGL spikes of 50-2000 ft while the aircraft is
-        # physically on the ground.  The clamp must cover three ground regimes:
-        #
-        #   1. Stationary / slow taxi  (GndSpd < 5 kts)
-        #       unconditionally zero  aircraft cannot be airborne
-        #
-        #   2. Normal taxi (5-50 kts) with AGL below a plausible airborne floor
-        #       zero if AGL < 150 ft  (208B cannot realistically be 150 ft AAL
-        #         at taxi speeds; any reading below that is baro noise)
-        #
-        #   3. Takeoff-roll / landing-roll (50-80 kts) with AGL < 50 ft
-        #       zero if AGL < 50 ft  (aircraft rotates at ~60 kts; readings
-        #         < 50 ft during the roll are still ground-level noise)
-        #
-        # These thresholds are conservative  they will NOT suppress genuine
-        # low-altitude events because:
-        #    Above 50 kts the clamp only acts below 50 ft (well below circuit height)
-        #    The rotation IAS for 208B is 58-60 kts so 50 kts is pre-rotation
-
-        # Regime 1: stationary
-        df.loc[gndspd < 5, 'AGL'] = 0.0
-
-        # Regime 2: taxi speed with implausible AGL reading
-        taxi_noise = (gndspd >= 5) & (gndspd < 50) & (df['AGL'] < 150)
-        df.loc[taxi_noise, 'AGL'] = 0.0
-
-        #  isGearGround  with hysteresis debounce 
-        #
-        # Problem: even after the clamps above, single-row spikes can still
-        # slip through (e.g. a 1 Hz baro glitch at 03:17 touchdown).
-        # A raw `AGL == 0` flag then flips 0101 in consecutive rows,
-        # making the gear state unstable for the phase classifier.
-        #
-        # Solution: state-machine with asymmetric hysteresis
-        #
-        #   GROUND  AIRBORNE  requires AGL > LIFTOFF_FLOOR  for
-        #                       LIFTOFF_CONFIRM consecutive rows
-        #                       (prevents taxi/roll spikes triggering airborne)
-        #
-        #   AIRBORNE  GROUND  requires AGL < LAND_CEIL  for
-        #                       LAND_CONFIRM consecutive rows
-        #                       (prevents approach AGL dip triggering ground)
-        #
-        # Constants chosen for 1 Hz G1000 data:
-        agl_arr  = df['AGL'].to_numpy(dtype=float)
-        ias_arr  = pd.to_numeric(df['IAS'], errors='coerce').fillna(0.0).to_numpy(dtype=float)
-        vspd_arr = pd.to_numeric(df['VSpd'], errors='coerce').fillna(0.0).to_numpy(dtype=float)
-        gear_arr = np.ones(len(agl_arr), dtype=np.int8)   # default: on ground
-
-        state = 1   # 1 = ground, 0 = airborne
-        vr    = self.cfg.get('rotation_ias', 60.0)
-
-        for i in range(len(agl_arr)):
-            if state == 1:   # currently on ground
-                # Exit ground (ground -> airborne): AGL > 40 ft AND IAS > Vr
-                if agl_arr[i] > 40.0 and ias_arr[i] > vr:
-                    state = 0
-            else:             # currently airborne
-                # Enter ground (airborne -> ground): AGL == 0 AND VSpd > -200 fpm
-                if agl_arr[i] <= 0.0 and vspd_arr[i] > -200.0:
-                    state = 1
-
-            gear_arr[i] = state
-
-        df['isGearGround'] = gear_arr
-
-        #  Detect arrival airport from GPS coords of last stationary rows 
-        if 'Latitude' in df.columns and 'Longitude' in df.columns:
-            _lat_s = pd.to_numeric(df['Latitude'],  errors='coerce')
-            _lon_s = pd.to_numeric(df['Longitude'], errors='coerce')
-            _slow  = (gndspd < 5)
-            _arr_lat = float(_lat_s[_slow].tail(30).median()) if _slow.any() else np.nan
-            _arr_lon = float(_lon_s[_slow].tail(30).median()) if _slow.any() else np.nan
-            if not (np.isnan(_arr_lat) or np.isnan(_arr_lon)):
-                self.arr_icao = _nearest_icao(_arr_lat, _arr_lon)
-
-        return df
 
     #  V3 NEW: ADAPTIVE THRESHOLD COMPUTATION 
 
@@ -1036,7 +1038,7 @@ class FOQAFlightClassifier:
         else:
             desc_dyn = self.cfg['climb_rate_threshold']
 
-        #  Cruise AGL: 80th percentile of LEVEL flight AGL
+        #  Cruise AltAAL: 80th percentile of LEVEL flight AltAAL
         #
         # Using 60th pct of all airborne rows was wrong: it included climb and
         # approach rows, inflating the threshold to 6,000-13,000 ft and causing
@@ -1048,20 +1050,20 @@ class FOQAFlightClassifier:
         # BELOW most cruise rows -- a threshold that is exceeded by 80% of level
         # flight rows gives the CruiseAlt witness a high hit rate.
         level_mask   = (df['IAS'] > 50) & (df['VSpd'].abs() < 300)
-        agl_samples  = df.loc[level_mask, 'AGL']
-        if len(agl_samples) >= MIN_ROWS:
-            cruise_agl_dyn = float(np.percentile(agl_samples, 80))
+        AltAAL_samples  = df.loc[level_mask, 'AltAAL']
+        if len(AltAAL_samples) >= MIN_ROWS:
+            cruise_AltAAL_dyn = float(np.percentile(AltAAL_samples, 80))
             # Clamp: must be at least 50% of static minimum, at most 3x
-            cruise_agl_dyn = np.clip(cruise_agl_dyn,
-                                     self.cfg['cruise_agl_min'] * 0.5,
-                                     self.cfg['cruise_agl_min'] * 15.0)
+            cruise_AltAAL_dyn = np.clip(cruise_AltAAL_dyn,
+                                     self.cfg['cruise_AltAAL_min'] * 0.5,
+                                     self.cfg['cruise_AltAAL_min'] * 15.0)
         else:
-            cruise_agl_dyn = self.cfg['cruise_agl_min']
+            cruise_AltAAL_dyn = self.cfg['cruise_AltAAL_min']
 
         self._dyn = {
             'climb_rate'   : climb_dyn,
             'descent_rate' : desc_dyn,
-            'cruise_agl'   : cruise_agl_dyn,
+            'cruise_AltAAL'   : cruise_AltAAL_dyn,
         }
 
         # Store in DataFrame attrs for external access
@@ -1071,8 +1073,8 @@ class FOQAFlightClassifier:
             print(f"  [DYN] climb_rate   = {climb_dyn:.1f} fpm "
                   f"(static: {self.cfg['climb_rate_threshold']:.1f})")
             print(f"  [DYN] descent_rate = {desc_dyn:.1f} fpm")
-            print(f"  [DYN] cruise_agl   = {cruise_agl_dyn:.1f} ft "
-                  f"(static: {self.cfg['cruise_agl_min']:.1f})")
+            print(f"  [DYN] cruise_AltAAL   = {cruise_AltAAL_dyn:.1f} ft "
+                  f"(static: {self.cfg['cruise_AltAAL_min']:.1f})")
 
     #  3. SPECIAL EVENT DETECTION  (v2 logic; persistence filter added)
 
@@ -1120,8 +1122,8 @@ class FOQAFlightClassifier:
         Supported condition keys
         ------------------------
         phase        list[str]  â FLIGHT_PHASE must be in this list
-        field+min    int/float  â AGL (or named field) >= min
-        field+max    int/float  â AGL (or named field) <= max
+        field+min    int/float  â AltAAL (or named field) >= min
+        field+max    int/float  â AltAAL (or named field) <= max
         icao         str        â dep_icao or arr_icao must match
         timer        "Ns"       â only the first N rows after the phase starts
         """
@@ -1134,18 +1136,28 @@ class FOQAFlightClassifier:
                 phases = [phases]
             mask &= ph.isin(phases)
 
-        # AGL band (field + min/max)
-        if 'field' in cond and cond['field'] == 'AGL':
+        # AltAAL band (field + min/max)
+        if 'field' in cond and cond['field'] == 'AltAAL':
             if 'min' in cond:
-                mask &= df['AGL'] >= float(cond['min'])
+                mask &= df['AltAAL'] >= float(cond['min'])
             if 'max' in cond:
-                mask &= df['AGL'] <= float(cond['max'])
+                mask &= df['AltAAL'] <= float(cond['max'])
 
-        # Airport-specific (WAYY taxi threshold)
+        # Airport-specific INCLUSIVE filter -- event only fires at this airport.
         if 'icao' in cond:
             req_icao = cond['icao'].upper()
             match = (self.dep_icao == req_icao) or (self.arr_icao == req_icao)
             if not match:
+                return pd.Series(False, index=df.index)
+
+        # Airport-specific EXCLUSIVE filter -- event is suppressed at this airport.
+        # When dep_icao or arr_icao matches the excluded code, a location-specific
+        # override (e.g. the WAYY GSG001 at 50 kts) takes precedence and this
+        # generic event must not fire.
+        if 'exclude_icao' in cond:
+            excl_icao = cond['exclude_icao'].upper()
+            at_excl = (self.dep_icao == excl_icao) or (self.arr_icao == excl_icao)
+            if at_excl:
                 return pd.Series(False, index=df.index)
 
         # Timer: only the first N seconds after the phase starts
@@ -1177,7 +1189,7 @@ class FOQAFlightClassifier:
           str          â df[field]
           list[str]    â first column found in df
           "expression" â eval cond["expression"] with df columns as variables
-          "agl_loss"   â rolling 60s max(AGL) - AGL
+          "AltAAL_loss"   â rolling 60s max(AltAAL) - AltAAL
         """
         field  = cond.get('field', '')
         value  = float(cond.get('value', 0))
@@ -1203,9 +1215,9 @@ class FOQAFlightClassifier:
                              for c in _num_df.columns if c in expr}
                 series = eval(expr, {'abs': abs}, _col_data)
                 series = pd.Series(series, index=df.index)
-        elif field == 'agl_loss':
-            series = (df['AGL'].rolling(window=60, min_periods=1).max()
-                      - df['AGL']).clip(lower=0)
+        elif field == 'AltAAL_loss':
+            series = (df['AltAAL'].rolling(window=60, min_periods=1).max()
+                      - df['AltAAL']).clip(lower=0)
         elif isinstance(field, list):
             # Use first available column
             col = next((c for c in field if c in df.columns), None)
@@ -1241,7 +1253,7 @@ class FOQAFlightClassifier:
         JSON-driven event detection engine.
 
         Iterates over self.event_defs filtered to the current aircraft variant.
-        For each event code+variant, builds a base condition mask (phase / AGL
+        For each event code+variant, builds a base condition mask (phase / AltAAL
         band / ICAO / timer), then applies severity-level field conditions
         (AND logic within a severity, S3 takes precedence over S2 over S1).
 
@@ -1354,7 +1366,7 @@ class FOQAFlightClassifier:
         cfg    = self.cfg
 
         #  Phase group masks  
-        # All event guards use FLIGHT_PHASE directly  no AGL-side heuristics.
+        # All event guards use FLIGHT_PHASE directly  no AltAAL-side heuristics.
         ph = df['FLIGHT_PHASE']
 
         ph_takeoff   = ph.isin(['TAKEOFF'])
@@ -1397,12 +1409,12 @@ class FOQAFlightClassifier:
 
         # 
         # 2. LVD030  HIGH DESCENT RATE below 500 ft
-        #    Phase: APPROACH + AGL < 500 ft, plus FLARE (always < 50 ft)
-        #    PREVIOUS BUG: no AGL gate  fired anywhere in APPROACH including
+        #    Phase: APPROACH + AltAAL < 500 ft, plus FLARE (always < 50 ft)
+        #    PREVIOUS BUG: no AltAAL gate  fired anywhere in APPROACH including
         #    at 1000-3000 ft during normal descent. Spec says "below 500ft".
         #    S1: < ÃÂ1000 fpm  |  S2: < ÃÂ1300 fpm  |  S3: < ÃÂ1700 fpm
         # 
-        ph_approach_low = ph_approach & (df['AGL'] < 500)
+        ph_approach_low = ph_approach & (df['AltAAL'] < 500)
         hdr_s3_raw = (df['VSpd'] < -1700) & ph_approach_low
         hdr_s2_raw = (df['VSpd'] < -1300) & ph_approach_low & ~hdr_s3_raw
         hdr_s1_raw = (df['VSpd'] < -1000) & ph_approach_low & ~hdr_s3_raw & ~hdr_s2_raw
@@ -1417,9 +1429,9 @@ class FOQAFlightClassifier:
 
         # 
         # 3. LSA505  APPROACH SPEED HIGH 1000-500 ft
-        #    Phase: APPROACH + AGL 500-1000 ft
+        #    Phase: APPROACH + AltAAL 500-1000 ft
         # 
-        apch_1000_500 = ph_approach & (df['AGL'] >= 500) & (df['AGL'] <= 1000)
+        apch_1000_500 = ph_approach & (df['AltAAL'] >= 500) & (df['AltAAL'] <= 1000)
 
         lsa505_s3 = require_persistence((df['IAS'] >= 155) & apch_1000_500, 15)
         lsa505_s2 = require_persistence((df['IAS'] >= 135) & apch_1000_500 & ~lsa505_s3, 15)
@@ -1431,9 +1443,9 @@ class FOQAFlightClassifier:
 
         # 
         # 4. LSA512  APPROACH SPEED HIGH 500-50 ft
-        #    Phase: APPROACH + AGL 50-500 ft
+        #    Phase: APPROACH + AltAAL 50-500 ft
         # 
-        apch_500_50 = ph_approach & (df['AGL'] >= 50) & (df['AGL'] < 500)
+        apch_500_50 = ph_approach & (df['AltAAL'] >= 50) & (df['AltAAL'] < 500)
 
         lsa512_s3 = require_persistence((df['IAS'] >= 115) & apch_500_50, 5)
         lsa512_s2 = require_persistence((df['IAS'] >= 110) & apch_500_50 & ~lsa512_s3, 5)
@@ -1445,7 +1457,7 @@ class FOQAFlightClassifier:
 
         # 
         # 5. LSA513  APPROACH SPEED HIGH below 50 ft
-        #    Phase: FLARE (AGL < 50 ft on approach)
+        #    Phase: FLARE (AltAAL < 50 ft on approach)
         # 
         flare_band = (ph == 'FINAL APPROACH')
 
@@ -1471,7 +1483,7 @@ class FOQAFlightClassifier:
 
         # 
         # 7. LSA620  APPROACH SPEED LOW 1000-500 ft  (S3 only)
-        #    Phase: APPROACH + AGL 500-1000 ft
+        #    Phase: APPROACH + AltAAL 500-1000 ft
         # 
         lsa620_s3 = require_persistence(
             (df['IAS'] <= 72) & (df['IAS'] > 0) & apch_1000_500, 5)
@@ -1479,7 +1491,7 @@ class FOQAFlightClassifier:
 
         # 
         # 8. LSA621  APPROACH SPEED LOW 500-50 ft
-        #    Phase: APPROACH + AGL 50-500 ft
+        #    Phase: APPROACH + AltAAL 50-500 ft
         # 
         ias_apch = (df['IAS'] > 0) & apch_500_50
 
@@ -1493,7 +1505,7 @@ class FOQAFlightClassifier:
 
         # 
         # 9. LSA622  LANDING SPEED LOW
-        #    Phase: FLARE only (AGL < 50 ft, pre-touchdown)
+        #    Phase: FLARE only (AltAAL < 50 ft, pre-touchdown)
         #    RATIONALE: During ROLLOUT aircraft naturally decelerates below 65
         #    kts  that is expected, not an event. LSA622 targets low IAS in
         #    the FLARE (approaching the threshold) where it creates tail-strike
@@ -1511,11 +1523,11 @@ class FOQAFlightClassifier:
 
         # 
         # 10. LSA700  AIRSPEED LOW 35-400 ft
-        #     Phase: ROTATION + INITIAL CLIMB, AGL 35-400 ft
-        #     (must be airborne  AGL > 35  to avoid takeoff roll false hits)
+        #     Phase: ROTATION + INITIAL CLIMB, AltAAL 35-400 ft
+        #     (must be airborne  AltAAL > 35  to avoid takeoff roll false hits)
         # 
         dep_low = ph.isin(['ROTATION', 'INITIAL CLIMB']) & (df['IAS'] > 0) & \
-                  (df['AGL'] >= 35) & (df['AGL'] <= 400)
+                  (df['AltAAL'] >= 35) & (df['AltAAL'] <= 400)
 
         lsa700_s3 = require_persistence((df['IAS'] <= 63) & dep_low, 5)
         lsa700_s2 = require_persistence((df['IAS'] <= 65) & dep_low & ~lsa700_s3, 5)
@@ -1533,14 +1545,14 @@ class FOQAFlightClassifier:
 
         # 
         # 12. TSA260  LIFTOFF AIRSPEED LOW
-        #     Phase: ROTATION with AGL > 0  (wheels already off ground)
+        #     Phase: ROTATION with AltAAL > 0  (wheels already off ground)
         #     RATIONALE: ph_takeoff (TAKEOFF ROLL) starts when GndSpd > 10 kts,
         #     so IAS is naturally 0-20 kts early in the roll  that is not a
         #     liftoff event. We only want to flag low IAS once the aircraft has
-        #     actually lifted off (AGL > 0). Restricting to ROTATION + AGL > 0
+        #     actually lifted off (AltAAL > 0). Restricting to ROTATION + AltAAL > 0
         #     prevents the 44 false positives observed in the log.
         # 
-        liftoff_gate = (ph == 'INITIAL CLIMB') & (df['AGL'] > 0) & (df['IAS'] > 0)
+        liftoff_gate = (ph == 'INITIAL CLIMB') & (df['AltAAL'] > 0) & (df['IAS'] > 0)
 
         tsa260_s3 = require_persistence((df['IAS'] <= 50) & liftoff_gate, 3)
         tsa260_s2 = require_persistence((df['IAS'] <= 55) & liftoff_gate & ~tsa260_s3, 3)
@@ -1552,9 +1564,9 @@ class FOQAFlightClassifier:
         # 13. LXX100  UNSTABLE APPROACH  (composite: speed AND descent rate)
         #     Per spec: steps assessed in turn  BOTH speed (LSA505/LSA512)
         #     AND VS (LVD030) must be outside limits to declare unstable.
-        #     S2: breached at AGL ÃÂÃÂ¤ 1000 ft for 3s
-        #     S3: breached at AGL ÃÂÃÂ¤  500 ft for 3s
-        #     PREVIOUS BUG: no AGL gate  fired anywhere in APPROACH phase
+        #     S2: breached at AltAAL <= 1000 ft for 3s
+        #     S3: breached at AltAAL <=  500 ft for 3s
+        #     PREVIOUS BUG: no AltAAL gate  fired anywhere in APPROACH phase
         #     including cruise-level descents. Also used OR (any one condition)
         #     instead of AND (both conditions) per spec definition.
         # 
@@ -1574,13 +1586,13 @@ class FOQAFlightClassifier:
         # Composite: BOTH speed AND VS must be unstable (per spec)
         ua_composite = ua_spd_unstable | ua_vs_unstable
 
-        # S2: composite unstable at AGL ÃÂÃÂ¤ 1000 ft in APPROACH
+        # S2: composite unstable at AltAAL <= 1000 ft in APPROACH
         ua_s2 = require_persistence(
-            ua_apch & ua_composite & (df['AGL'] <= 1000) & (df['AGL'] > 0), 3)
+            ua_apch & ua_composite & (df['AltAAL'] <= 1000) & (df['AltAAL'] > 0), 3)
 
-        # S3: composite unstable at AGL ÃÂÃÂ¤ 500 ft in APPROACH or any FLARE
+        # S3: composite unstable at AltAAL <= 500 ft in APPROACH or any FLARE
         ua_s3 = require_persistence(
-            (ua_apch | ua_flare) & ua_composite & (df['AGL'] <= 500), 3)
+            (ua_apch | ua_flare) & ua_composite & (df['AltAAL'] <= 500), 3)
 
         events[ua_s3]           = _append_event(events[ua_s3],           'UNSTABLE_APP_S3')
         events[ua_s2 & ~ua_s3] = _append_event(events[ua_s2 & ~ua_s3], 'UNSTABLE_APP_S2')
@@ -1656,10 +1668,10 @@ class FOQAFlightClassifier:
 
         # 
         # 18. TRA000  ROLL HIGH liftoff to 20 ft
-        #     AGL band: 0-20 ft  (TAKEOFF ROLL / ROTATION while still near ground)
+        #     AltAAL band: 0-20 ft  (TAKEOFF ROLL / ROTATION while still near ground)
         # 
         bank = df['Roll'].abs()
-        ph_tra000 = (df['isGearGround'] == 0) & (df['AGL'] <= 20)
+        ph_tra000 = (df['isGearGround'] == 0) & (df['AltAAL'] <= 20)
 
         tra000_s3 = require_persistence((bank >= 30) & ph_tra000, 3)
         tra000_s2 = require_persistence((bank >= 20) & ph_tra000 & ~tra000_s3, 3)
@@ -1671,12 +1683,12 @@ class FOQAFlightClassifier:
 
         # 
         # 19. TRA005  ROLL HIGH 20-100 ft
-        #     AGL band: 20-100 ft  (ROTATION / INITIAL CLIMB)
-        #     PREVIOUS BUG: no AGL gate  fired throughout INITIAL CLIMB up to
+        #     AltAAL band: 20-100 ft  (ROTATION / INITIAL CLIMB)
+        #     PREVIOUS BUG: no AltAAL gate  fired throughout INITIAL CLIMB up to
         #     400 ft, inflating count from 1 (Aering) to 21 (ours).
         # 
         ph_rot_iclimb = ph.isin(['ROTATION', 'INITIAL CLIMB'])
-        ph_tra005 = ph_rot_iclimb & (df['AGL'] > 20) & (df['AGL'] <= 100)
+        ph_tra005 = ph_rot_iclimb & (df['AltAAL'] > 20) & (df['AltAAL'] <= 100)
 
         tra005_s3 = require_persistence((bank >= 30) & ph_tra005, 3)
         tra005_s2 = require_persistence((bank >= 20) & ph_tra005 & ~tra005_s3, 3)
@@ -1688,10 +1700,10 @@ class FOQAFlightClassifier:
 
         # 
         # 20. TRA006  ROLL HIGH 100-500 ft
-        #     AGL band: 100-500 ft  (INITIAL CLIMB / CLIMB)
+        #     AltAAL band: 100-500 ft  (INITIAL CLIMB / CLIMB)
         # 
         ph_iclimb_climb = ph.isin(['INITIAL CLIMB', 'CLIMB'])
-        ph_tra006 = ph_iclimb_climb & (df['AGL'] > 100) & (df['AGL'] <= 500)
+        ph_tra006 = ph_iclimb_climb & (df['AltAAL'] > 100) & (df['AltAAL'] <= 500)
 
         tra006_s3 = require_persistence((bank >= 46) & ph_tra006, 3)
         tra006_s2 = require_persistence((bank >= 41) & ph_tra006 & ~tra006_s3, 3)
@@ -1703,11 +1715,11 @@ class FOQAFlightClassifier:
 
         # 
         # 21. FRA003  ROLL HIGH above 500 ft
-        #     AGL: > 500 ft  (all airborne phases)
-        #     PREVIOUS BUG: ph_airborne with no AGL gate  fired at 20-500 ft
+        #     AltAAL: > 500 ft  (all airborne phases)
+        #     PREVIOUS BUG: ph_airborne with no AltAAL gate  fired at 20-500 ft
         #     too, overlapping with TRA005/TRA006 bands.
         # 
-        ph_fra003 = ph_airborne & (df['AGL'] > 500)
+        ph_fra003 = ph_airborne & (df['AltAAL'] > 500)
 
         fra003_s3 = require_persistence((bank >= 46) & ph_fra003, 3)
         fra003_s2 = require_persistence((bank >= 41) & ph_fra003 & ~fra003_s3, 3)
@@ -1719,24 +1731,24 @@ class FOQAFlightClassifier:
 
         # 
         # 22. TAA005/TAA006  HEIGHT LOSS
-        #     AGL loss = rolling 60s AGL peak minus current AGL.
+        #     AltAAL loss = rolling 60s AltAAL peak minus current AltAAL.
         #     TAA005  Phase: ROTATION, INITIAL CLIMB
         #     TAA006  Phase: CLIMB, CLIMBING FLIGHT
         # 
-        agl_loss = (df['AGL'].rolling(window=60, min_periods=1).max() - df['AGL']).clip(lower=0)
-        df['AGL_LOSS'] = agl_loss.round(1)
+        AltAAL_loss = (df['AltAAL'].rolling(window=60, min_periods=1).max() - df['AltAAL']).clip(lower=0)
+        df['AltAAL_LOSS'] = AltAAL_loss.round(1)
 
-        taa005_s3 = require_persistence((agl_loss >= 100) & ph_rot_iclimb, 1)
-        taa005_s2 = require_persistence((agl_loss >= 75)  & ph_rot_iclimb & ~taa005_s3, 1)
-        taa005_s1 = require_persistence((agl_loss >= 50)  & ph_rot_iclimb & ~taa005_s2 & ~taa005_s3, 1)
+        taa005_s3 = require_persistence((AltAAL_loss >= 100) & ph_rot_iclimb, 1)
+        taa005_s2 = require_persistence((AltAAL_loss >= 75)  & ph_rot_iclimb & ~taa005_s3, 1)
+        taa005_s1 = require_persistence((AltAAL_loss >= 50)  & ph_rot_iclimb & ~taa005_s2 & ~taa005_s3, 1)
 
         events[taa005_s3]                             = _append_event(events[taa005_s3],                             'HGT_LOSS_20_400FT_S3')
         events[taa005_s2 & ~taa005_s3]               = _append_event(events[taa005_s2 & ~taa005_s3],               'HGT_LOSS_20_400FT_S2')
         events[taa005_s1 & ~taa005_s2 & ~taa005_s3] = _append_event(events[taa005_s1 & ~taa005_s2 & ~taa005_s3], 'HGT_LOSS_20_400FT_S1')
 
-        taa006_s3 = require_persistence((agl_loss >= 200) & ph_climb, 1)
-        taa006_s2 = require_persistence((agl_loss >= 150) & ph_climb & ~taa006_s3, 1)
-        taa006_s1 = require_persistence((agl_loss >= 100) & ph_climb & ~taa006_s2 & ~taa006_s3, 1)
+        taa006_s3 = require_persistence((AltAAL_loss >= 200) & ph_climb, 1)
+        taa006_s2 = require_persistence((AltAAL_loss >= 150) & ph_climb & ~taa006_s3, 1)
+        taa006_s1 = require_persistence((AltAAL_loss >= 100) & ph_climb & ~taa006_s2 & ~taa006_s3, 1)
 
         events[taa006_s3]                             = _append_event(events[taa006_s3],                             'HGT_LOSS_400_1000FT_S3')
         events[taa006_s2 & ~taa006_s3]               = _append_event(events[taa006_s2 & ~taa006_s3],               'HGT_LOSS_400_1000FT_S2')
@@ -1784,13 +1796,13 @@ class FOQAFlightClassifier:
         # 
         # 27. TXX001  AUTOPILOT ENGAGED EARLY
         #     Phase: ROTATION, INITIAL CLIMB, CLIMB
-        #     S1: ÃÂÃÂ¤ 900 ft  |  S2: ÃÂÃÂ¤ 500 ft  |  S3: ÃÂÃÂ¤ 100 ft
+        #     S1: <= 900 ft  |  S2: <= 500 ft  |  S3: <= 100 ft
         # 
         ap_dep = (df['AfcsOn'] >= 1) & ph_departure
 
-        txx001_s3 = require_persistence(ap_dep & (df['AGL'] <= 100), 1)
-        txx001_s2 = require_persistence(ap_dep & (df['AGL'] <= 500)  & ~txx001_s3, 1)
-        txx001_s1 = require_persistence(ap_dep & (df['AGL'] <= 900)  & ~txx001_s2 & ~txx001_s3, 1)
+        txx001_s3 = require_persistence(ap_dep & (df['AltAAL'] <= 100), 1)
+        txx001_s2 = require_persistence(ap_dep & (df['AltAAL'] <= 500)  & ~txx001_s3, 1)
+        txx001_s1 = require_persistence(ap_dep & (df['AltAAL'] <= 900)  & ~txx001_s2 & ~txx001_s3, 1)
 
         events[txx001_s3]                             = _append_event(events[txx001_s3],                             'AP_ENGAGED_EARLY_TO_S3')
         events[txx001_s2 & ~txx001_s3]               = _append_event(events[txx001_s2 & ~txx001_s3],               'AP_ENGAGED_EARLY_TO_S2')
@@ -2006,7 +2018,7 @@ class FOQAFlightClassifier:
             'ENG_GAS_TEMP_CRUISE_HI':   'degC',
             'MAX_ALT_EXCD':             'ft',
             'AP_ENGAGED_EARLY_TO':      'ft',
-            'ENG_GND_IDLE': 's'   # peak = AGL at engagement
+            'ENG_GND_IDLE': 's'   # peak = AltAAL at engagement
         }
         events = []
 
@@ -2066,12 +2078,12 @@ class FOQAFlightClassifier:
                     peak_value = float(grp['Roll'].abs().max())
 
                 elif base_name in ('HGT_LOSS_20_400FT', 'HGT_LOSS_400_1000FT'):
-                    if 'AGL_LOSS' in grp.columns:
-                        peak_value = float(grp['AGL_LOSS'].max())
-                    elif 'AGL' in grp.columns:
+                    if 'AltAAL_LOSS' in grp.columns:
+                        peak_value = float(grp['AltAAL_LOSS'].max())
+                    elif 'AltAAL' in grp.columns:
                         peak_value = float(
-                            (grp['AGL'].rolling(window=60, min_periods=1).max()
-                             - grp['AGL']).clip(lower=0).max())
+                            (grp['AltAAL'].rolling(window=60, min_periods=1).max()
+                             - grp['AltAAL']).clip(lower=0).max())
 
                 elif base_name == 'NORM_G_HI_TO' and 'NormAc_peak' in grp.columns:
                     peak_value = float(grp['NormAc_peak'].max())
@@ -2151,7 +2163,7 @@ class FOQAFlightClassifier:
         """
         Merge consecutive windows of the same event label where the gap
         between end_row of the previous and start_row of the next is
-        ÃÂÃÂ¤ gap_sec rows (1 Hz assumption).
+        <= gap_sec rows (1 Hz assumption).
 
         The merged window takes the worst peak value and sums duration.
         """
@@ -2193,7 +2205,7 @@ class FOQAFlightClassifier:
     #  4. SINGLE-ROW CLASSIFIER
 
     def _classify_row(self,
-                      agl, gndspd, ias, vspd, torque, fflow, ng,
+                      AltAAL, gndspd, ias, vspd, torque, fflow, ng,
                       pitch, roll, latac, normac,
                       ias_d, vspd_d, gspd_d, torq_d,
                       alt_stab, alt_deriv, energy, energy_d, afcs, gps_ok,
@@ -2232,7 +2244,7 @@ class FOQAFlightClassifier:
         GROUND PHASES  positive witness design
         ----------------------------------------
         Previously ground phases scored near 0 because the two "gate" checks
-        (IAS_FLY and AGL_FLY) both failed, giving 0 hits / 2 possible.
+        (IAS_FLY and AltAAL_FLY) both failed, giving 0 hits / 2 possible.
         Ground phases now use POSITIVE witnesses that are true when on the ground,
         scored from their own snapshot, giving meaningful confidence values.
         """
@@ -2277,34 +2289,34 @@ class FOQAFlightClassifier:
         # routing gate, not witnesses for any specific phase.
         #
         # isGearGround hard-gate logic:
-        #   gear_on_ground=True  (AGL==0)  unconditionally route to ground
-        #     branch. IAS and hysteresis are irrelevant  if AGL is zero the
+        #   gear_on_ground=True  (AltAAL==0)  unconditionally route to ground
+        #     branch. IAS and hysteresis are irrelevant  if AltAAL is zero the
         #     barometric model says the aircraft is at ground elevation.
-        #   gear_on_ground=False (AGL>0)   gear has left the ground.
+        #   gear_on_ground=False (AltAAL>0)   gear has left the ground.
         #     Relax the IAS requirement when hysteresis is already active
         #     (handles sensor-lag at liftoff / touch-and-go transitions).
-        #     Allow in_airborne_hyst alone to confirm airborne when AGL>0,
+        #     Allow in_airborne_hyst alone to confirm airborne when AltAAL>0,
         #     covering brief IAS dropout during rotation.
         # 
         if gear_on_ground:
-            # AGL == 0  gear is on ground. Hard-route to ground branch.
+            # AltAAL == 0  gear is on ground. Hard-route to ground branch.
             # Ignore IAS, hysteresis, and prev_phase  barometric model is
             # definitive here and prevents airborne mis-classification during
             # slow taxi or engine run-up with momentarily elevated IAS.
             is_airborne     = False
             definitely_ground = True
         else:
-            # AGL > 0  gear is confirmed off ground.
+            # AltAAL > 0  gear is confirmed off ground.
             # Relax IAS threshold when hysteresis is already active (aircraft
-            # was recently established as airborne and AGL has not returned to 0).
+            # was recently established as airborne and AltAAL has not returned to 0).
             ias_thr = (cfg['definitely_airborne_ias'] * 0.85
                        if in_airborne_hyst else cfg['definitely_airborne_ias'])
-            agl_thr = cfg['liftoff_agl_exit'] if in_airborne_hyst else cfg['liftoff_agl_enter']
+            AltAAL_thr = cfg['liftoff_AltAAL_exit'] if in_airborne_hyst else cfg['liftoff_AltAAL_enter']
             # Two paths to confirm airborne when gear is off ground:
-            #   a) IAS+AGL meet thresholds (primary)
-            #   b) hysteresis already active + AGL > 0 (handles IAS sensor lag)
-            is_airborne     = ((ias > ias_thr) and (agl > agl_thr)) or \
-                              (in_airborne_hyst and agl > 0)
+            #   a) IAS+AltAAL meet thresholds (primary)
+            #   b) hysteresis already active + AltAAL > 0 (handles IAS sensor lag)
+            is_airborne     = ((ias > ias_thr) and (AltAAL > AltAAL_thr)) or \
+                              (in_airborne_hyst and AltAAL > 0)
             definitely_ground = not is_airborne
 
         if definitely_ground:
@@ -2356,13 +2368,13 @@ class FOQAFlightClassifier:
 
         #  From here: aircraft is confirmed airborne (gear_on_ground=False + is_airborne) 
         # Add GearOffGnd as a positive witness for the first airborne-branch layer
-        # that fires. This boosts confidence on all airborne phases when AGL > 0.
+        # that fires. This boosts confidence on all airborne phases when AltAAL > 0.
         W(not gear_on_ground, 'GearOffGnd')
 
         # 
         # LAYER 2 - GO-AROUND  INITIAL CLIMB
         # 
-        if agl < 300 and vspd > -200 and \
+        if AltAAL < 300 and vspd > -200 and \
                 prev_phase in ('APPROACH', 'FINAL APPROACH', 'LANDING', 'DESCENT'):
             s = snap()
             torq_rise   = W(torq_d  > 200, 'TorqRise')
@@ -2373,7 +2385,7 @@ class FOQAFlightClassifier:
         # 
         # LAYER 3 - TAKEOFF / INITIAL CLIMB
         # 
-        if agl < 300 and vspd > 0 and \
+        if AltAAL < 300 and vspd > 0 and \
                 prev_phase in ('TAKEOFF', 'INITIAL CLIMB', 'PRE-FLIGHT', 'TAXI OUT'):
             s = snap()
             pitch_ok = W(pitch   >  2,                         'PitchPos')
@@ -2381,10 +2393,10 @@ class FOQAFlightClassifier:
             torq_ok  = W(torque >  cfg['climb_torque_min'],    'TorqClimb')
             if pitch_ok and ias_ok and torq_ok:
                 # All rotation and early climb = TAKEOFF or INITIAL CLIMB
-                ph = "TAKEOFF" if agl < 100 else "INITIAL CLIMB"
+                ph = "TAKEOFF" if AltAAL < 100 else "INITIAL CLIMB"
                 return ph, conf_from_snap(s), _reason(ph, reason_tags[s[2]:])
 
-        if agl < 1000 and \
+        if AltAAL < 1000 and \
                 prev_phase in ('INITIAL CLIMB', 'TAKEOFF'):
             s = snap()
             vspd_ok = W(vspd   >  dyn['climb_rate'],        'VSpdClimb')
@@ -2395,13 +2407,13 @@ class FOQAFlightClassifier:
         # 
         # LAYER 4 - LANDING BAND
         # 
-        if agl < cfg['touchdown_agl']:
+        if AltAAL < cfg['touchdown_AltAAL']:
             s = snap()
             W(normac > 1.15, 'NormAcSpike')
             W(gndspd > 20,   'GndSpdOk')
             return "LANDING", conf_from_snap(s), _reason("LANDING", reason_tags[s[2]:])
 
-        if agl < cfg['flare_agl']:
+        if AltAAL < cfg['flare_AltAAL']:
             s = snap()
             W(pitch > 2,      'PitchFlare')
             W(vspd  > -400,   'VSpdArrest')
@@ -2410,13 +2422,13 @@ class FOQAFlightClassifier:
         # 
         # LAYER 5 - APPROACH BAND (split into APPROACH vs FINAL APPROACH)
         # 
-        if agl < 1500:
+        if AltAAL < 1500:
             s = snap()
             desc_ok = W(vspd < -100, 'VSpdDesc') or (not gps_ok and alt_deriv < -50)
             ias_ok  = W(ias  > (cfg['rotation_ias'] - 10), 'IAS_Apch')
             if desc_ok and ias_ok:
-                # Split APPROACH vs FINAL APPROACH at 500ft AGL
-                phase_name = "FINAL APPROACH" if agl <= 500 else "APPROACH"
+                # Split APPROACH vs FINAL APPROACH at 500ft AltAAL
+                phase_name = "FINAL APPROACH" if AltAAL <= 500 else "APPROACH"
                 return phase_name, conf_from_snap(s), _reason(phase_name, reason_tags[s[2]:])
 
         # 
@@ -2454,7 +2466,7 @@ class FOQAFlightClassifier:
         s = snap()
         is_level       = W(abs(vspd) < 200,               'LevelVSpd')
         alt_stable     = W(alt_stab  < 80,                'AltStable')
-        in_cruise_band = W(agl       > dyn['cruise_agl'], 'CruiseAlt')
+        in_cruise_band = W(AltAAL       > dyn['cruise_AltAAL'], 'CruiseAlt')
         if afcs_on:
             W(True, 'AFCS')
         cruise_score   = is_level + alt_stable + in_cruise_band + afcs_on
@@ -2525,8 +2537,8 @@ class FOQAFlightClassifier:
         """Vectorised segment-level consistency. Unchanged from v2."""
         phases = df['FLIGHT_PHASE'].copy()
 
-        # Rule 1: CRUISE below cruise_agl_min  DESCENT
-        cruise_too_low = (phases == 'CRUISE') & (df['AGL'] < self.cfg['cruise_agl_min'])
+        # Rule 1: CRUISE below cruise_AltAAL_min  DESCENT
+        cruise_too_low = (phases == 'CRUISE') & (df['AltAAL'] < self.cfg['cruise_AltAAL_min'])
         phases[cruise_too_low] = 'DESCENT'
 
         # Rule 2: APPROACH with mean VSpd > 100 fpm (climbing)  CLIMB
@@ -2596,14 +2608,14 @@ class FOQAFlightClassifier:
 
         V2 pipeline (steps 1-6, all preserved):
         1. Compute derived parameters
-        2. Compute dynamic AGL
+        2. Compute dynamic AltAAL
         3. Detect special events
         4. First-pass phase classification (state-machine loop)
         5. Temporal smoothing
         6. Post-pass audit
 
         V3 additions:
-        2a. Compute adaptive thresholds (between AGL and events)
+        2a. Compute adaptive thresholds (between AltAAL and events)
         4.  Loop now tracks hysteresis state, collects confidence + reason
         6a. Compute PHASE_STABILITY index (after audit)
         
@@ -2626,8 +2638,57 @@ class FOQAFlightClassifier:
         print("  [1/8] Computing derived parameters...")
         df = self.compute_derived(df)
 
-        print("  [2/8] Computing dynamic AGL (gradient model)...")
-        df = self.compute_agl(df)
+        print("  [2/8] Computing dynamic AltAAL (gradient model)...")
+        df = self.compute_AltAAL(df)
+
+        print("  [2b/8] Resolving departure / arrival ICAO from GPS track...")
+        # Identify the GPS coordinate columns. Garmin G1000/G950 CSVs use
+        # 'Latitude' and 'Longitude'; guard against missing columns gracefully.
+        _lat_col = next((c for c in ['Latitude', 'Lat', 'LAT'] if c in df.columns), None)
+        _lon_col = next((c for c in ['Longitude', 'Lon', 'LON'] if c in df.columns), None)
+
+        if _lat_col and _lon_col:
+            # Build a mask of rows with a valid GPS fix.
+            # GPS_quality was computed in compute_derived(): 1 = good, 0 = degraded.
+            # We also require that the coordinate values are actually numeric and non-zero.
+            _gps_valid = (
+                (df['GPS_quality'] == 1) &
+                (pd.to_numeric(df[_lat_col], errors='coerce').notna()) &
+                (pd.to_numeric(df[_lon_col], errors='coerce').notna()) &
+                (pd.to_numeric(df[_lat_col], errors='coerce').abs() > 0.001) &
+                (pd.to_numeric(df[_lon_col], errors='coerce').abs() > 0.001)
+            )
+            _valid_rows = df[_gps_valid]
+
+            if not _valid_rows.empty:
+                # --- Departure ICAO: use filename-derived code first.
+                # Only override if dep_icao was not supplied by the caller.
+                if not self.dep_icao:
+                    _first = _valid_rows.iloc[0]
+                    _dep_lat = float(pd.to_numeric(_first[_lat_col], errors='coerce'))
+                    _dep_lon = float(pd.to_numeric(_first[_lon_col], errors='coerce'))
+                    self.dep_icao = _nearest_icao(_dep_lat, _dep_lon)
+                    if self.debug_mode:
+                        print(f"  [GPS] dep_icao resolved: '{self.dep_icao}' "
+                              f"from ({_dep_lat:.4f}, {_dep_lon:.4f})")
+
+                # --- Arrival ICAO: use the last several valid GPS rows.
+                _arr_rows = _valid_rows.tail(min(10, len(_valid_rows)))
+                _arr_lat = float(pd.to_numeric(_arr_rows[_lat_col], errors='coerce').median())
+                _arr_lon = float(pd.to_numeric(_arr_rows[_lon_col], errors='coerce').median())
+                self.arr_icao = _nearest_icao(_arr_lat, _arr_lon)
+                if self.debug_mode:
+                    print(f"  [GPS] arr_icao resolved: '{self.arr_icao}' "
+                          f"from last {_arr_rows.shape[0]} valid rows "
+                          f"({_arr_lat:.4f}, {_arr_lon:.4f})")
+            else:
+                if self.debug_mode:
+                    print("  [GPS] No valid GPS rows found — dep_icao/arr_icao unchanged.")
+        else:
+            if self.debug_mode:
+                print(f"  [GPS] Latitude/Longitude columns not found in CSV — "
+                      f"dep_icao/arr_icao unchanged. Columns present: "
+                      f"{[c for c in df.columns if 'lat' in c.lower() or 'lon' in c.lower()]}")
 
         print("  [3/8] Computing adaptive thresholds...")
         self.compute_adaptive_thresholds(df)
@@ -2638,7 +2699,7 @@ class FOQAFlightClassifier:
         def _arr(col: str) -> np.ndarray:
             return df[col].to_numpy(dtype=float, na_value=0.0)
 
-        a_agl      = _arr('AGL')
+        a_AltAAL      = _arr('AltAAL')
         a_gndspd   = _arr('GndSpd')
         a_ias      = _arr('IAS')
         a_vspd     = _arr('VSpd')
@@ -2681,7 +2742,7 @@ class FOQAFlightClassifier:
 
         for i in range(len(df)):
             raw_phase, raw_conf, raw_reason = self._classify_row(
-                float(a_agl[i]),      float(a_gndspd[i]),  float(a_ias[i]),
+                float(a_AltAAL[i]),      float(a_gndspd[i]),  float(a_ias[i]),
                 float(a_vspd[i]),     float(a_torque[i]),  float(a_fflow[i]),
                 float(a_ng[i]),       float(a_pitch[i]),   float(a_roll[i]),
                 float(a_latac[i]),    float(a_normac[i]),
@@ -2721,9 +2782,9 @@ class FOQAFlightClassifier:
                     else:
                         validated = current_phase
 
-            if a_agl[i] > cfg['liftoff_agl_enter']:
+            if a_AltAAL[i] > cfg['liftoff_AltAAL_enter']:
                 in_airborne_hyst = True
-            elif a_agl[i] < cfg['liftoff_agl_exit']:
+            elif a_AltAAL[i] < cfg['liftoff_AltAAL_exit']:
                 in_airborne_hyst = False
 
             if a_vspd[i] > cfg['climb_rate_enter']:
@@ -2846,7 +2907,9 @@ def ensure_columns(df: pd.DataFrame) -> pd.DataFrame:
 def process_flight_log(input_file: str,
                        output_file: str,
                        aircraft_type: str = "Generic",
-                       debug_mode: bool   = False) -> None:
+                       debug_mode: bool   = False,
+                       dep_icao: str = "",
+                       arr_icao: str = "") -> None:
     print(f"\n{'='*60}")
     print(f"  FOQA Flight Phase Classifier -- v4.0 FDA/Aering")
     print(f"  Aircraft : {aircraft_type}")
@@ -2875,7 +2938,7 @@ def process_flight_log(input_file: str,
     _CLASSIFIER_COLS = [
         'FLIGHT_PHASE', 'FLIGHT_EVENT', 'SEVERITY',
         'PHASE_CONFIDENCE', 'PHASE_REASON', 'PHASE_STABILITY',
-        'AGL', 'isGearGround', 'AGL_LOSS'
+        'AltAAL', 'isGearGround', 'AltAAL_LOSS'
     ]
     collision = [c for c in _CLASSIFIER_COLS if c in original_columns]
     if collision:
@@ -2899,10 +2962,16 @@ def process_flight_log(input_file: str,
 
     df_work = ensure_columns(df_work)
 
+    dep_icao = _icao_from_filename(input_file)
+    if dep_icao and debug_mode:
+        print(f"  [FILENAME] dep_icao parsed from filename: '{dep_icao}'")
+
     classifier = FOQAFlightClassifier(aircraft_type=aircraft_type,
-                                       debug_mode=debug_mode)
+                                       debug_mode=debug_mode,
+                                       dep_icao=dep_icao,
+                                       arr_icao=arr_icao)
     df_work = classifier.classify(df_work)
-    df_work['AGL'] = df_work['AGL'].round(1)
+    df_work['AltAAL'] = df_work['AltAAL'].round(1)
     df_out = pd.concat(
         [df_raw[original_columns].reset_index(drop=True),
          df_work[_CLASSIFIER_COLS].reset_index(drop=True)],
@@ -2937,7 +3006,7 @@ def process_flight_log(input_file: str,
     if dyn:
         print(f"  Dynamic climb rate   : {dyn.get('climb_rate', 'N/A'):.1f} fpm")
         print(f"  Dynamic descent rate : {dyn.get('descent_rate', 'N/A'):.1f} fpm")
-        print(f"  Dynamic cruise AGL   : {dyn.get('cruise_agl', 'N/A'):.1f} ft")
+        print(f"  Dynamic cruise AltAAL   : {dyn.get('cruise_AltAAL', 'N/A'):.1f} ft")
 
     import csv as _csv
     print(f"\nWriting output to: {output_file}")
